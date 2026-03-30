@@ -1,0 +1,2318 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>PostFreely Runner</title>
+<link rel="stylesheet" href="/assets/css/main.css"/>
+<style>
+html, body { overflow: auto; min-height: 100%; }
+body { min-height: 100vh; }
+#runner-app {
+  position: relative;
+  z-index: 1;
+  max-width: 1280px;
+  margin: 18px auto 40px;
+  padding: 0 16px 24px;
+}
+.runner-shell {
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at top right, rgba(92, 164, 255, 0.14), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
+  backdrop-filter: blur(14px);
+  box-shadow: var(--shadow);
+  padding: 28px;
+}
+.runner-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18px;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+}
+.runner-kicker {
+  font-size: 11px;
+  color: var(--text3);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  font-family: var(--font-ui);
+  font-weight: 700;
+}
+.r-title {
+  font-size: 42px;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  color: var(--text);
+  line-height: 0.95;
+}
+.r-title span { color: var(--blue); }
+.r-subtitle {
+  margin-top: 12px;
+  color: var(--text2);
+  font-size: 13px;
+  max-width: 760px;
+  line-height: 1.7;
+}
+.runner-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.r-card {
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(0, 0, 0, 0.12));
+  padding: 20px;
+  margin-bottom: 18px;
+}
+.r-card h3 {
+  font-family: var(--font-ui);
+  font-size: 18px;
+  margin-bottom: 16px;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+.config-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 2fr) minmax(180px, 1.2fr) 120px 120px 110px auto;
+  gap: 14px;
+  align-items: end;
+}
+.r-field { min-width: 0; }
+.r-field label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: var(--text3);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-family: var(--font-ui);
+  font-weight: 700;
+}
+.r-field input,
+.r-field select,
+.r-field textarea {
+  width: 100%;
+  background: var(--inp-bg);
+  border: 1px solid var(--inp-border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s, transform .15s;
+}
+.r-field textarea {
+  min-height: 112px;
+  resize: vertical;
+}
+.r-field input:focus,
+.r-field select:focus,
+.r-field textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0, 229, 160, 0.08);
+}
+.r-field input[disabled] {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+.run-stack {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: flex-end;
+}
+.r-run-btn,
+.r-stop-btn,
+.r-secondary-btn,
+.r-ghost-btn {
+  height: 48px;
+  border-radius: 16px;
+  padding: 0 18px;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform .15s, border-color .15s, background .15s, color .15s, opacity .15s;
+  white-space: nowrap;
+}
+.r-run-btn {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(180deg, var(--accent), var(--accent2));
+  color: #04110b;
+  min-width: 150px;
+}
+.r-run-btn:hover { transform: translateY(-1px); }
+.r-stop-btn {
+  border: 1px solid rgba(255, 92, 124, 0.28);
+  background: rgba(255, 92, 124, 0.12);
+  color: var(--red);
+  min-width: 114px;
+}
+.r-stop-btn:hover { background: rgba(255, 92, 124, 0.18); }
+.r-secondary-btn {
+  border: 1px solid var(--border2);
+  background: var(--btn-bg);
+  color: var(--text);
+}
+.r-secondary-btn:hover,
+.r-ghost-btn:hover {
+  border-color: var(--accentborder);
+  color: var(--accent);
+  background: var(--accentbg);
+}
+.r-ghost-btn {
+  border: 1px dashed var(--border2);
+  background: transparent;
+  color: var(--text2);
+}
+.r-run-btn[disabled],
+.r-stop-btn[disabled],
+.r-secondary-btn[disabled],
+.r-ghost-btn[disabled] {
+  opacity: 0.58;
+  cursor: not-allowed;
+  transform: none;
+}
+.config-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 16px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.config-note {
+  color: var(--text2);
+  font-size: 12px;
+  line-height: 1.7;
+  max-width: 720px;
+}
+.chip-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border2);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text2);
+  font-size: 11px;
+  line-height: 1.2;
+}
+.file-chip.strong {
+  color: var(--text);
+  border-color: var(--accentborder);
+  background: linear-gradient(180deg, rgba(0, 229, 160, 0.08), rgba(0, 0, 0, 0.08));
+}
+#results-card { min-height: 420px; }
+.results-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.results-title {
+  font-family: var(--font-ui);
+  font-size: 18px;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+.results-subtitle {
+  margin-top: 6px;
+  color: var(--text2);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.results-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.run-banner {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  margin: 10px 0 16px;
+  border-radius: 16px;
+  border: 1px solid var(--border2);
+  background: linear-gradient(90deg, rgba(92, 164, 255, 0.12), rgba(0, 0, 0, 0.08));
+  color: var(--text);
+  flex-wrap: wrap;
+}
+.run-banner.show { display: flex; }
+.run-banner.error {
+  border-color: rgba(255, 92, 124, 0.28);
+  background: linear-gradient(90deg, rgba(255, 92, 124, 0.12), rgba(0, 0, 0, 0.08));
+}
+.run-banner strong { color: var(--text); }
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(110px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.sum-card {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.02);
+}
+.sum-card.filterable {
+  cursor: pointer;
+  transition: transform .15s, border-color .15s, background .15s, box-shadow .15s;
+}
+.sum-card.filterable:hover {
+  transform: translateY(-1px);
+  border-color: var(--accentborder);
+}
+.sum-card.filterable.active {
+  border-color: var(--accentborder);
+  background: linear-gradient(180deg, rgba(0, 229, 160, 0.08), rgba(255, 255, 255, 0.02));
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.14);
+}
+.sum-num {
+  font-size: 27px;
+  line-height: 1;
+  color: var(--text);
+  margin-bottom: 8px;
+  font-family: var(--font);
+  font-weight: 700;
+}
+.sum-num.pass { color: var(--green); }
+.sum-num.fail { color: var(--red); }
+.sum-lbl {
+  color: var(--text3);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.summary-filter-note {
+  margin: -2px 0 10px;
+  color: var(--text2);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.empty-state {
+  border: 1px dashed var(--border2);
+  border-radius: 20px;
+  padding: 34px;
+  min-height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  text-align: center;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(0, 0, 0, 0.12));
+  color: var(--text2);
+}
+.empty-state strong {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--text);
+  font-size: 18px;
+  font-family: var(--font-ui);
+}
+.empty-state p {
+  max-width: 620px;
+  line-height: 1.7;
+  font-size: 12px;
+}
+.iteration-group {
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: rgba(0, 0, 0, 0.14);
+  margin-top: 14px;
+  overflow: hidden;
+}
+.iteration-head {
+  width: 100%;
+  border: none;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
+  padding: 15px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  color: inherit;
+  text-align: left;
+}
+.iteration-head:hover { background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)); }
+.iteration-head-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.iteration-index {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg3);
+  color: var(--text);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.iteration-title {
+  font-family: var(--font-ui);
+  font-size: 15px;
+  color: var(--text);
+}
+.iteration-meta {
+  margin-top: 5px;
+  color: var(--text2);
+  font-size: 11px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.status-compact {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  min-height: 32px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid var(--border2);
+}
+.status-compact.pass {
+  background: var(--greenbg);
+  color: var(--green);
+  border-color: rgba(0, 229, 160, 0.22);
+}
+.status-compact.fail {
+  background: var(--redbg);
+  color: var(--red);
+  border-color: rgba(255, 92, 124, 0.25);
+}
+.iteration-chevron {
+  font-size: 18px;
+  color: var(--text3);
+  transition: transform .15s;
+}
+.iteration-group.open .iteration-chevron { transform: rotate(90deg); }
+.iteration-body { display: none; }
+.iteration-group.open .iteration-body { display: block; }
+.result-list { display: flex; flex-direction: column; }
+.result-item + .result-item { border-top: 1px solid var(--border); }
+.result-summary {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: inherit;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 2fr) 86px 110px 84px 90px 120px;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  text-align: left;
+  cursor: pointer;
+}
+.result-summary:hover { background: rgba(255, 255, 255, 0.02); }
+.result-index {
+  color: var(--text3);
+  font-size: 11px;
+  font-weight: 700;
+}
+.result-name {
+  min-width: 0;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.result-name small {
+  display: block;
+  color: var(--text3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.result-status {
+  font-size: 12px;
+  font-weight: 700;
+}
+.result-status.pass { color: var(--green); }
+.result-status.fail { color: var(--red); }
+.result-chevron {
+  text-align: right;
+  color: var(--text3);
+  font-size: 16px;
+  transition: transform .15s;
+}
+.result-item.open .result-chevron { transform: rotate(180deg); }
+.result-detail {
+  display: none;
+  padding: 0 16px 16px;
+}
+.result-item.open .result-detail { display: block; }
+.detail-hint {
+  margin: 2px 0 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 92, 124, 0.22);
+  background: rgba(255, 92, 124, 0.08);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.detail-card {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.02);
+  overflow: hidden;
+}
+.detail-card h4 {
+  padding: 12px 14px;
+  font-size: 11px;
+  color: var(--text3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-ui);
+}
+.detail-pre {
+  padding: 14px;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 360px;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.detail-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.runner-ai-output {
+  width: 100%;
+  margin-top: 8px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--accentborder);
+  background: var(--accentbg);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  display: none;
+}
+.runner-ai-output.error {
+  border-color: rgba(255, 92, 124, 0.28);
+  background: rgba(255, 92, 124, 0.1);
+  color: var(--redtext);
+}
+.side-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s;
+  z-index: 700;
+}
+.side-backdrop.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+.side-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: min(460px, 100vw);
+  background: linear-gradient(180deg, var(--bg2), rgba(0, 0, 0, 0.18));
+  border-left: 1px solid var(--border2);
+  box-shadow: -20px 0 48px rgba(0, 0, 0, 0.28);
+  transform: translateX(100%);
+  transition: transform .2s ease;
+  z-index: 800;
+  display: flex;
+  flex-direction: column;
+}
+.side-drawer.open { transform: translateX(0); }
+.drawer-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 20px 20px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.drawer-title {
+  font-family: var(--font-ui);
+  font-size: 20px;
+  color: var(--text);
+}
+.drawer-subtitle {
+  margin-top: 8px;
+  color: var(--text2);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.drawer-body {
+  flex: 1;
+  overflow: auto;
+  padding: 18px 20px 22px;
+}
+.drawer-close {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--text2);
+  cursor: pointer;
+  font-size: 18px;
+}
+.drawer-close:hover {
+  border-color: var(--accentborder);
+  color: var(--accent);
+}
+.upload-card {
+  border: 1px dashed var(--accentborder);
+  border-radius: 20px;
+  padding: 18px;
+  background: linear-gradient(180deg, rgba(0, 229, 160, 0.07), rgba(255, 255, 255, 0.01));
+  margin-bottom: 14px;
+}
+.upload-card strong {
+  display: block;
+  color: var(--text);
+  font-size: 15px;
+  font-family: var(--font-ui);
+  margin-bottom: 8px;
+}
+.upload-card p {
+  color: var(--text2);
+  font-size: 12px;
+  line-height: 1.7;
+  margin-bottom: 14px;
+}
+.data-toolbar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.data-preview-wrap {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: auto;
+  background: var(--bg);
+}
+.data-preview-table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+}
+.data-preview-table th,
+.data-preview-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+  font-size: 12px;
+}
+.data-preview-table th {
+  color: var(--text3);
+  background: var(--bg3);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 10px;
+}
+.preview-note {
+  margin-top: 10px;
+  color: var(--text3);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.sources-shell {
+  display: flex;
+  gap: 16px;
+  min-height: 460px;
+}
+.sources-sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  padding-right: 14px;
+}
+.sources-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 460px;
+  overflow: auto;
+}
+.source-coll-btn {
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text2);
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 12px;
+  transition: border-color .15s, background .15s, color .15s;
+}
+.source-coll-btn:hover,
+.source-coll-btn.active {
+  border-color: var(--accentborder);
+  background: var(--accentbg);
+  color: var(--text);
+}
+.sources-editor {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.sources-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.source-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 460px;
+  overflow: auto;
+  padding-right: 4px;
+}
+.source-card {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 14px;
+}
+.source-top {
+  display: grid;
+  grid-template-columns: 148px minmax(0, 1fr) auto auto;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.source-fetch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text2);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.source-del {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--red);
+  cursor: pointer;
+  font-size: 18px;
+}
+.source-del:hover {
+  background: rgba(255, 92, 124, 0.08);
+  border-color: rgba(255, 92, 124, 0.24);
+}
+.source-helper {
+  color: var(--text3);
+  font-size: 11px;
+  line-height: 1.6;
+  margin-top: 8px;
+}
+#runner-toast {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--accentborder);
+  background: var(--bg2);
+  color: var(--text);
+  box-shadow: var(--shadow);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px);
+  transition: opacity .18s, transform .18s;
+  z-index: 1200;
+  max-width: 420px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+#runner-toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+#runner-toast.error {
+  border-color: rgba(255, 92, 124, 0.32);
+  color: var(--redtext);
+}
+.runner-shell,
+.r-card,
+.sum-card,
+.iteration-card,
+.detail-card,
+.sources-editor,
+.source-item,
+.upload-card,
+.data-preview-wrap,
+.side-drawer,
+#runner-toast {
+  background:
+    linear-gradient(180deg, var(--glass-highlight, rgba(255,255,255,0.06)), rgba(255,255,255,0.012)),
+    var(--glass-bg, rgba(8,13,22,0.54));
+  border-color: var(--glass-border, var(--border));
+  backdrop-filter: blur(var(--surface-blur, 18px));
+  box-shadow: var(--panel-edge), var(--panel-glow);
+}
+.runner-shell,
+#results-card {
+  background:
+    radial-gradient(circle at top right, var(--ambient-a, rgba(92,164,255,0.14)), transparent 34%),
+    linear-gradient(180deg, var(--glass-highlight, rgba(255,255,255,0.06)), rgba(255,255,255,0.012)),
+    var(--glass-bg-strong, rgba(8,13,22,0.76));
+}
+.r-field input,
+.r-field select,
+.r-field textarea,
+.file-chip,
+.sum-card,
+.detail-hint,
+.detail-card,
+.upload-card,
+.source-item,
+.sources-sidebar {
+  backdrop-filter: blur(var(--surface-blur, 18px));
+}
+.result-summary:hover {
+  background: rgba(255, 255, 255, 0.045);
+}
+.result-detail,
+.results-subtitle,
+.config-note {
+  position: relative;
+}
+.spin-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  margin-right: 8px;
+  background: var(--blue);
+  box-shadow: 0 0 0 0 rgba(92, 164, 255, 0.35);
+  animation: pulse 1s infinite ease-out;
+}
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(92, 164, 255, 0.38); }
+  80% { box-shadow: 0 0 0 14px rgba(92, 164, 255, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(92, 164, 255, 0); }
+}
+@media (max-width: 1120px) {
+  .config-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .run-stack {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+  .summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+  .result-summary {
+    grid-template-columns: 28px minmax(0, 1fr) 74px 92px 90px;
+  }
+  .result-summary .hide-md { display: none; }
+  .source-top {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 820px) {
+  #runner-app { padding: 0 10px 18px; }
+  .runner-shell { padding: 18px; border-radius: 22px; }
+  .r-title { font-size: 34px; }
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .sources-shell {
+    flex-direction: column;
+  }
+  .sources-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding-right: 0;
+    padding-bottom: 12px;
+  }
+}
+</style>
+</head>
+<body>
+<div id="runner-app">
+  <div class="runner-shell">
+    <div class="runner-header">
+      <div>
+        <div class="runner-kicker">Execution Studio</div>
+        <div class="r-title">Collection <span>Runner</span></div>
+        <div class="r-subtitle">Run saved collections with live environments, row-driven CSV or JSON iteration data, and expandable per-request results you can inspect or fix.</div>
+      </div>
+      <div class="runner-actions">
+        <button class="r-secondary-btn" id="r-open-data-btn" type="button">Data File</button>
+        <button class="r-secondary-btn" id="r-open-sources-btn" type="button">AI Sources</button>
+        <span class="file-chip strong" id="r-selected-chip">No collection selected</span>
+      </div>
+    </div>
+
+    <section class="r-card">
+      <h3>Configuration</h3>
+      <div class="config-grid">
+        <div class="r-field">
+          <label>Collection</label>
+          <select id="r-coll-sel"><option value="">Loading collections...</option></select>
+        </div>
+        <div class="r-field">
+          <label>Environment</label>
+          <select id="r-env-sel"><option value="">No Environment</option></select>
+        </div>
+        <div class="r-field">
+          <label>Iterations</label>
+          <input type="number" id="r-iters" value="1" min="1" max="5000"/>
+        </div>
+        <div class="r-field">
+          <label>Delay (ms)</label>
+          <input type="number" id="r-delay" value="0" min="0"/>
+        </div>
+        <div class="r-field">
+          <label>Parallel</label>
+          <input type="number" id="r-parallel" value="4" min="1" max="12"/>
+        </div>
+        <div class="run-stack">
+          <button class="r-run-btn" id="r-run-btn" type="button">Run Collection</button>
+          <button class="r-stop-btn" id="r-stop-btn" type="button" style="display:none">Stop</button>
+        </div>
+      </div>
+      <div class="config-foot">
+        <div class="config-note" id="r-config-note">No data file loaded yet. Manual iterations will repeat the collection in order. Add a CSV or JSON file if you want each row to become one iteration automatically.</div>
+        <div class="chip-row">
+          <span class="file-chip" id="r-data-summary">No data file loaded</span>
+          <span class="file-chip" id="r-iter-summary">1 manual iteration</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="r-card" id="results-card">
+      <div class="results-head">
+        <div>
+          <div class="runner-kicker" style="margin-bottom:6px">Run Output</div>
+          <div class="results-title">Results</div>
+          <div class="results-subtitle" id="r-results-subtitle">Pick a collection, attach data if needed, and run it. Results stay here while the data file lives in its own side panel.</div>
+        </div>
+        <div class="results-actions">
+          <button class="r-secondary-btn" id="r-rerun-btn" type="button" disabled>Rerun Same Data</button>
+          <button class="r-secondary-btn" id="r-change-data-btn" type="button">Change Data File</button>
+          <button class="r-secondary-btn" id="export-btn" type="button" disabled>Export JSON</button>
+        </div>
+      </div>
+
+      <div class="run-banner" id="r-run-banner"></div>
+      <div id="r-summary"></div>
+      <div id="r-groups"></div>
+      <div class="empty-state" id="r-results-empty">
+        <strong>No run output yet</strong>
+        <p>When you start a collection run, PostFreely will keep the result workspace here with grouped iterations, expandable request responses, response headers, iteration row data, and AI-assisted fix suggestions for failures.</p>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="side-backdrop" id="data-drawer-backdrop"></div>
+<aside class="side-drawer" id="data-drawer" aria-hidden="true">
+  <div class="drawer-head">
+    <div>
+      <div class="drawer-title">Data File</div>
+      <div class="drawer-subtitle">Attach a CSV or JSON array and every row becomes one runner iteration. Preview the file here, then let the run results take over the main workspace.</div>
+    </div>
+    <button class="drawer-close" id="r-close-data-btn" type="button">×</button>
+  </div>
+  <div class="drawer-body">
+    <div class="upload-card">
+      <strong>Load iteration data</strong>
+      <p>Use a CSV export, employee list, fixture data, or any JSON array of objects. PostFreely reads the rows locally in the browser, previews them, and sends them as iteration variables during the run.</p>
+      <input id="r-data-file" type="file" accept=".csv,.json,application/json,text/csv" style="display:none"/>
+      <div class="data-toolbar">
+        <button class="r-secondary-btn" id="r-pick-data-btn" type="button">Choose File</button>
+        <button class="r-ghost-btn" id="r-clear-data-btn" type="button">Clear Data File</button>
+      </div>
+      <span class="file-chip strong" id="r-drawer-summary">No data file loaded</span>
+    </div>
+
+    <div class="empty-state" id="r-data-empty" style="min-height:220px">
+      <strong>No preview yet</strong>
+      <p>Load a CSV or JSON file and PostFreely will show a preview table here before the run. Once you run the collection, this drawer can collapse while the result workspace stays front and center.</p>
+    </div>
+
+    <div id="r-data-preview" style="display:none">
+      <div class="data-preview-wrap">
+        <table class="data-preview-table">
+          <thead id="r-data-head"></thead>
+          <tbody id="r-data-body"></tbody>
+        </table>
+      </div>
+      <div class="preview-note" id="r-data-note"></div>
+    </div>
+  </div>
+</aside>
+
+<div class="overlay" id="sources-modal">
+  <div class="modal" style="width:min(980px,96vw)">
+    <div class="modal-hd">
+      <h2>AI <span>Sources</span></h2>
+      <button class="modal-close" data-close-modal="sources-modal">×</button>
+    </div>
+    <div class="sources-shell">
+      <div class="sources-sidebar">
+        <div class="runner-kicker" style="margin-bottom:10px">Collections</div>
+        <div class="sources-list" id="source-coll-list"></div>
+      </div>
+      <div class="sources-editor">
+        <div class="sources-toolbar">
+          <div>
+            <div class="results-title" id="source-coll-title">Select a collection</div>
+            <div class="results-subtitle" id="source-coll-subtitle">Store multiple links, notes, and copied file contents for AI-assisted generation and debugging.</div>
+          </div>
+          <div class="results-actions">
+            <input type="file" id="source-file-input" accept=".txt,.md,.json,.yaml,.yml,.csv,.log,.xml" style="display:none"/>
+            <button class="r-ghost-btn" id="source-add-url-btn" type="button">Add Link</button>
+            <button class="r-ghost-btn" id="source-add-note-btn" type="button">Add Note</button>
+            <button class="r-ghost-btn" id="source-import-file-btn" type="button">Add File</button>
+          </div>
+        </div>
+        <div class="empty-state" id="source-empty" style="min-height:260px">
+          <strong>No collection selected</strong>
+          <p>Pick a collection from the left, then save Swagger links, API docs, copied file snippets, or notes that AI should use while generating requests or suggesting fixes.</p>
+        </div>
+        <div class="source-cards" id="source-list" style="display:none"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <div class="modal-err" id="sources-err" style="flex:1;margin:0"></div>
+      <button class="btn-ghost" data-close-modal="sources-modal">Close</button>
+      <button class="btn-primary" id="save-sources-btn">Save AI Sources</button>
+    </div>
+  </div>
+</div>
+
+<div id="runner-toast"></div>
+
+<script src="/assets/js/core/api.js"></script>
+<script>
+const RUNNER_STORAGE_KEY = 'postfreely.runner.v4';
+let RUNNER_STATE = {
+  collections: {},
+  envs: {},
+  dataRows: [],
+  dataFileName: '',
+  runData: null,
+  activeRunId: '',
+  isRunning: false,
+  isStopping: false,
+  manualIterations: 1,
+  sourcesCollectionId: '',
+  sourceDrafts: {},
+  pollTimer: null,
+  lastResultCount: 0,
+  summaryFilter: 'all',
+  iterationOpenState: {},
+  resultOpenState: {},
+  settings: {},
+  stopRequested: false,
+};
+
+function esc(value) {
+  if (value == null) return '';
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function uniqueId(prefix = 'id') {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function methodBadge(method) {
+  return { GET: 'mGET', POST: 'mPOST', PUT: 'mPUT', DELETE: 'mDELETE', PATCH: 'mPATCH', HEAD: 'mHEAD' }[method] || 'mOPTIONS';
+}
+
+function defaultRunnerCompatibility() {
+  return API.compatibilityStatus('untested', 'Browser compatibility has not been checked yet.');
+}
+
+function normalizeRunnerRequest(request) {
+  return {
+    ...(request || {}),
+    bodyType: request?.bodyType || request?.body_type || 'json',
+    transport_mode: request?.transport_mode || request?.transportMode || 'auto',
+    browser_compatibility: API.mergeCompatibility(defaultRunnerCompatibility(), request?.browser_compatibility || request?.browserCompatibility),
+  };
+}
+
+function collectionVariables(collection) {
+  return collection?.variables && typeof collection.variables === 'object' ? collection.variables : {};
+}
+
+function environmentVariables(envId) {
+  const env = envId ? RUNNER_STATE.envs[envId] : null;
+  return env?.variables && typeof env.variables === 'object' ? env.variables : {};
+}
+
+function createRunState(runId, collection, requestDefs, totalIterations, dataRowsUsed, parallelism) {
+  return {
+    run_id: runId,
+    status: 'running',
+    collection_id: collection?.id || '',
+    collection_name: collection?.name || 'Collection',
+    planned_requests: requestDefs.length * totalIterations,
+    total_requests: 0,
+    total_pass: 0,
+    total_fail: 0,
+    total_ms: 0,
+    iterations: totalIterations,
+    completed_iterations: 0,
+    completed_iteration_ids: [],
+    data_rows_used: dataRowsUsed,
+    parallelism,
+    results: [],
+    started_at: Date.now(),
+    finished_at: null,
+    stopped_reason: '',
+    error: null,
+  };
+}
+
+function appendRunResult(run, requestDef, iteration, dataRow, response) {
+  const statusCode = Number(response?.status_code || 0);
+  const passed = statusCode >= 200 && statusCode < 300;
+  run.results.push({
+    request_id: requestDef.id,
+    request_name: requestDef.name || requestDef.url || 'Request',
+    method: requestDef.method || 'GET',
+    url: requestDef.url || '',
+    iteration,
+    data_row: dataRow,
+    status_code: statusCode,
+    status_text: response?.status_text || '',
+    elapsed_ms: Number(response?.elapsed_ms || 0),
+    size_bytes: Number(response?.size_bytes || 0),
+    passed,
+    error: passed ? null : (response?.error || `${statusCode} ${response?.status_text || 'Request failed'}`),
+    error_detail: response?.error_detail || '',
+    error_hint: response?.error_hint || '',
+    body_preview: response?.body_preview || '',
+    response,
+  });
+  run.total_requests += 1;
+  run.total_pass += Number(passed);
+  run.total_fail += Number(!passed);
+  run.total_ms += Number(response?.elapsed_ms || 0);
+}
+
+function markIterationComplete(run, iteration) {
+  if (!run.completed_iteration_ids.includes(iteration)) {
+    run.completed_iteration_ids.push(iteration);
+    run.completed_iteration_ids.sort((a, b) => a - b);
+  }
+  run.completed_iterations = run.completed_iteration_ids.length;
+}
+
+async function sleepWithStop(delayMs) {
+  let remaining = Math.max(0, Number(delayMs || 0));
+  while (remaining > 0) {
+    if (RUNNER_STATE.stopRequested) return false;
+    const step = Math.min(remaining, 120);
+    await new Promise(resolve => setTimeout(resolve, step));
+    remaining -= step;
+  }
+  return !RUNNER_STATE.stopRequested;
+}
+
+async function executeIteration(run, collection, envId, requestDefs, iteration, dataRow, delayMs) {
+  const variables = {
+    ...environmentVariables(envId),
+    ...collectionVariables(collection),
+    ...(dataRow && typeof dataRow === 'object' ? dataRow : {}),
+  };
+
+  for (const requestDef of requestDefs) {
+    if (RUNNER_STATE.stopRequested) return false;
+    if (delayMs > 0) {
+      const keepGoing = await sleepWithStop(delayMs);
+      if (!keepGoing) return false;
+    }
+
+    const normalized = normalizeRunnerRequest(requestDef);
+    let response;
+    try {
+      response = await API.executeExternalRequest({
+        method: normalized.method || 'GET',
+        url: normalized.url || '',
+        params: normalized.params || [],
+        headers: normalized.headers || [],
+        body: normalized.body || '',
+        body_type: normalized.bodyType || normalized.body_type || 'json',
+        auth: normalized.auth || { type: 'none' },
+        collection_id: collection?.id || null,
+        transport_mode: normalized.transport_mode || 'auto',
+        browser_compatibility: normalized.browser_compatibility || defaultRunnerCompatibility(),
+      }, {
+        variables,
+        saveHistory: true,
+      });
+    } catch (error) {
+      response = {
+        status_code: 0,
+        status_text: 'Error',
+        headers: {},
+        body: '',
+        raw_body: '',
+        elapsed_ms: 0,
+        size_bytes: 0,
+        is_json: false,
+        error: error.message || String(error),
+        error_detail: error.message || String(error),
+        error_hint: '',
+        body_preview: '',
+        connection_error: true,
+        execution_mode: 'proxy',
+        browser_compatibility: defaultRunnerCompatibility(),
+      };
+    }
+
+    requestDef.browser_compatibility = API.mergeCompatibility(requestDef.browser_compatibility, response.browser_compatibility);
+    appendRunResult(run, requestDef, iteration, dataRow, response);
+    RUNNER_STATE.lastResultCount = run.results.length;
+    renderRunResults(run, { scroll: false });
+  }
+
+  markIterationComplete(run, iteration);
+  renderRunResults(run, { scroll: false });
+  return true;
+}
+
+function formatSize(bytes) {
+  const size = Number(bytes || 0);
+  if (size >= 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(2)} MB`;
+  if (size >= 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${size} B`;
+}
+
+function findCollection(id) {
+  return id ? (RUNNER_STATE.collections[id] || null) : null;
+}
+
+function showToast(message, isError = false) {
+  const toast = document.getElementById('runner-toast');
+  toast.textContent = message;
+  toast.className = isError ? 'show error' : 'show';
+  clearTimeout(showToast._timer);
+  showToast._timer = setTimeout(() => {
+    toast.className = '';
+  }, 2800);
+}
+
+function openModal(id) {
+  document.getElementById(id)?.classList.add('open');
+}
+
+function closeModal(id) {
+  document.getElementById(id)?.classList.remove('open');
+}
+
+function openDataDrawer() {
+  document.getElementById('data-drawer').classList.add('open');
+  document.getElementById('data-drawer').setAttribute('aria-hidden', 'false');
+  document.getElementById('data-drawer-backdrop').classList.add('show');
+}
+
+function closeDataDrawer() {
+  document.getElementById('data-drawer').classList.remove('open');
+  document.getElementById('data-drawer').setAttribute('aria-hidden', 'true');
+  document.getElementById('data-drawer-backdrop').classList.remove('show');
+}
+
+function persistRunnerPrefs() {
+  const data = {
+    collectionId: document.getElementById('r-coll-sel')?.value || '',
+    envId: document.getElementById('r-env-sel')?.value || '',
+    delayMs: document.getElementById('r-delay')?.value || '0',
+    parallel: document.getElementById('r-parallel')?.value || '4',
+    manualIterations: RUNNER_STATE.manualIterations || 1,
+  };
+  localStorage.setItem(RUNNER_STORAGE_KEY, JSON.stringify(data));
+}
+
+function restoreRunnerPrefs() {
+  try {
+    return JSON.parse(localStorage.getItem(RUNNER_STORAGE_KEY) || '{}');
+  } catch (_) {
+    return {};
+  }
+}
+
+function applySettings(settings) {
+  RUNNER_STATE.settings = settings || {};
+  const fontSize = Number(settings.font_size || 13) || 13;
+  const scale = Math.max(0.84, Math.min(1.38, fontSize / 13));
+  const themeId = ({
+    dark: 'graphite',
+    light: 'calm',
+    midnight: 'aurora',
+    terminal: 'vibrant',
+    solarized: 'ember',
+  })[settings.theme] || settings.theme;
+  if (themeId) document.documentElement.setAttribute('data-theme', themeId);
+  document.documentElement.style.fontSize = `${fontSize}px`;
+  document.documentElement.style.setProperty('--ui-scale', scale.toFixed(3));
+
+  const bgMap = {
+    gradient1: 'linear-gradient(135deg,#081321 0%,#1b1441 36%,#0f4154 72%,#08121a 100%)',
+    gradient2: 'linear-gradient(135deg,#e1f8f2 0%,#d9ebff 45%,#fafcff 100%)',
+    gradient3: 'linear-gradient(135deg,#2b1230 0%,#6d2742 38%,#c76c61 72%,#f5c585 100%)',
+    gradient4: 'linear-gradient(135deg,#071814 0%,#124337 36%,#0c6a58 72%,#6bd6cb 100%)',
+    mesh: 'radial-gradient(circle at 12% 18%,rgba(0,229,160,.22) 0%,transparent 30%),radial-gradient(circle at 82% 14%,rgba(92,164,255,.24) 0%,transparent 34%),radial-gradient(circle at 58% 78%,rgba(180,127,255,.18) 0%,transparent 34%),linear-gradient(135deg,#0a1024 0%,#1f1848 48%,#091521 100%)',
+    dots: 'linear-gradient(135deg,#09111d 0%,#10192a 100%),repeating-linear-gradient(0deg,rgba(255,255,255,.04) 0px,rgba(255,255,255,.04) 1px,transparent 1px,transparent 40px),repeating-linear-gradient(90deg,rgba(255,255,255,.04) 0px,rgba(255,255,255,.04) 1px,transparent 1px,transparent 40px)',
+    halo: 'radial-gradient(circle at 18% 20%,rgba(255,255,255,.20) 0%,transparent 18%),radial-gradient(circle at 76% 24%,rgba(92,164,255,.30) 0%,transparent 22%),radial-gradient(circle at 82% 82%,rgba(255,127,124,.20) 0%,transparent 18%),linear-gradient(135deg,#0a1128 0%,#281b52 48%,#7a3454 100%)',
+  };
+
+  const customBg = settings.custom_bg || settings.custom_bg_url || '';
+  let bg = customBg ? `url("${String(customBg).replace(/"/g, '%22')}")` : bgMap[settings.background] || '';
+  if (!bg && settings.background === 'none') bg = '';
+  document.body.style.setProperty('--custom-bg', bg || 'none');
+  document.body.style.setProperty('--bg-opacity', settings.bg_opacity == null ? (settings.background_opacity == null ? 0.18 : settings.background_opacity) : settings.bg_opacity);
+  document.body.style.setProperty('--bg-size', settings.bg_size || 'cover');
+  document.body.style.setProperty('--bg-pos-x', `${settings.bg_pos_x == null ? 50 : settings.bg_pos_x}%`);
+  document.body.style.setProperty('--bg-pos-y', `${settings.bg_pos_y == null ? 50 : settings.bg_pos_y}%`);
+  const blurPx = Math.max(0, Number(settings.bg_blur) || 0);
+  const bokehAmount = Math.max(0, Number(settings.bg_bokeh) || 18);
+  document.body.style.setProperty('--bg-blur', `${blurPx}px`);
+  document.body.style.setProperty('--bg-scale', (1 + (blurPx / 220)).toFixed(3));
+  document.body.style.setProperty('--bg-bokeh-opacity', Math.min(0.85, bokehAmount / 100).toFixed(3));
+  document.body.style.setProperty('--bg-bokeh-blur', `${(10 + (bokehAmount * 0.42)).toFixed(1)}px`);
+}
+
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let current = '';
+  let inQuotes = false;
+  const source = String(text || '');
+
+  for (let i = 0; i < source.length; i += 1) {
+    const char = source[i];
+    const next = source[i + 1];
+
+    if (char === '"') {
+      if (inQuotes && next === '"') {
+        current += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === ',' && !inQuotes) {
+      row.push(current);
+      current = '';
+      continue;
+    }
+
+    if ((char === '\n' || char === '\r') && !inQuotes) {
+      if (char === '\r' && next === '\n') i += 1;
+      row.push(current);
+      current = '';
+      if (row.some(cell => String(cell).trim() !== '')) rows.push(row);
+      row = [];
+      continue;
+    }
+
+    current += char;
+  }
+
+  row.push(current);
+  if (row.some(cell => String(cell).trim() !== '')) rows.push(row);
+  if (!rows.length) return [];
+
+  const headers = rows.shift().map((cell, index) => String(cell || '').trim() || `column_${index + 1}`);
+  return rows.map((cells, index) => {
+    const mapped = { __row_number: index + 1 };
+    headers.forEach((header, headerIndex) => {
+      mapped[header] = cells[headerIndex] ?? '';
+    });
+    return mapped;
+  });
+}
+
+async function loadDataFile(file) {
+  if (!file) return;
+  const text = await file.text();
+  let rows = [];
+
+  if (file.name.toLowerCase().endsWith('.json')) {
+    const parsed = JSON.parse(text);
+    if (!Array.isArray(parsed)) throw new Error('JSON data files must contain an array of objects.');
+    rows = parsed
+      .filter(item => item && typeof item === 'object' && !Array.isArray(item))
+      .map((row, index) => ({ __row_number: index + 1, ...row }));
+  } else {
+    rows = parseCsv(text);
+  }
+
+  RUNNER_STATE.dataRows = rows;
+  RUNNER_STATE.dataFileName = file.name;
+  renderDataPreview();
+  closeDataDrawer();
+  showToast(`${file.name} loaded with ${rows.length} row(s).`);
+}
+
+function clearDataFile() {
+  RUNNER_STATE.dataRows = [];
+  RUNNER_STATE.dataFileName = '';
+  document.getElementById('r-data-file').value = '';
+  renderDataPreview();
+}
+function updateIterationMode() {
+  const input = document.getElementById('r-iters');
+  if (!RUNNER_STATE.dataRows.length) {
+    input.disabled = false;
+    input.value = RUNNER_STATE.manualIterations || 1;
+    return;
+  }
+  RUNNER_STATE.manualIterations = parseInt(input.value, 10) || RUNNER_STATE.manualIterations || 1;
+  input.disabled = true;
+  input.value = RUNNER_STATE.dataRows.length;
+}
+
+function renderConfigState() {
+  const collection = findCollection(document.getElementById('r-coll-sel').value);
+  const selectedChip = document.getElementById('r-selected-chip');
+  selectedChip.textContent = collection ? `${collection.name} selected` : 'No collection selected';
+  selectedChip.classList.toggle('strong', !!collection);
+
+  const hasData = RUNNER_STATE.dataRows.length > 0;
+  const dataLabel = hasData
+    ? `${RUNNER_STATE.dataFileName || 'Data file'} - ${RUNNER_STATE.dataRows.length} row(s)`
+    : 'No data file loaded';
+  document.getElementById('r-data-summary').textContent = dataLabel;
+  document.getElementById('r-drawer-summary').textContent = dataLabel;
+  document.getElementById('r-iter-summary').textContent = hasData
+    ? `${RUNNER_STATE.dataRows.length} file-driven iteration(s)`
+    : `${parseInt(document.getElementById('r-iters').value, 10) || 1} manual iteration(s)`;
+  document.getElementById('r-config-note').textContent = hasData
+    ? `${RUNNER_STATE.dataFileName} is loaded. Every row becomes one iteration, so the runner will execute exactly ${RUNNER_STATE.dataRows.length} iteration(s) and ignore the manual iterations box until you clear or replace the file. Browser-compatible requests run directly from your machine for maximum speed.`
+    : 'No data file loaded yet. Manual iterations will repeat the collection in order. Add a CSV or JSON file if you want each row to become one iteration automatically. Browser-compatible requests run directly from your machine for maximum speed.';
+  document.getElementById('r-results-subtitle').textContent = collection
+    ? `Showing output for ${collection.name}. Keep rerunning with the same file, switch environments, or update the collection and run again.`
+    : 'Pick a collection, attach data if needed, and run it. Results stay here while the data file lives in its own side panel.';
+  persistRunnerPrefs();
+}
+
+function renderDataPreview() {
+  updateIterationMode();
+  renderConfigState();
+
+  const empty = document.getElementById('r-data-empty');
+  const preview = document.getElementById('r-data-preview');
+  const head = document.getElementById('r-data-head');
+  const body = document.getElementById('r-data-body');
+  const note = document.getElementById('r-data-note');
+  const rows = RUNNER_STATE.dataRows;
+
+  if (!rows.length) {
+    empty.style.display = '';
+    preview.style.display = 'none';
+    head.innerHTML = '';
+    body.innerHTML = '';
+    note.textContent = '';
+    return;
+  }
+
+  const keys = Object.keys(rows[0] || {}).filter(key => key !== '__row_number').slice(0, 8);
+  const headers = ['__row_number', ...keys];
+  head.innerHTML = `<tr>${headers.map(key => `<th>${esc(key)}</th>`).join('')}</tr>`;
+  body.innerHTML = rows.slice(0, 10).map(row => `
+    <tr>${headers.map(key => `<td>${esc(row[key])}</td>`).join('')}</tr>
+  `).join('');
+  preview.style.display = '';
+  empty.style.display = 'none';
+  note.textContent = rows.length > 10
+    ? `Previewing the first 10 rows. The runner will still use all ${rows.length} row(s).`
+    : `This file will drive ${rows.length} iteration(s).`;
+}
+
+function buildLegacySources(collection) {
+  const sources = [];
+  if (collection?.docs_url) {
+    sources.push({
+      id: uniqueId('source'),
+      type: 'url',
+      label: 'Docs URL',
+      content: collection.docs_url,
+      allow_fetch: !!collection.allow_ai_doc_fetch,
+    });
+  }
+  if (collection?.docs_notes) {
+    sources.push({
+      id: uniqueId('source'),
+      type: 'note',
+      label: 'Collection Notes',
+      content: collection.docs_notes,
+      allow_fetch: false,
+    });
+  }
+  return sources;
+}
+
+function cloneSources(sources) {
+  return (sources || []).map(source => ({
+    id: source.id || uniqueId('source'),
+    type: source.type || 'note',
+    label: source.label || '',
+    content: source.content || '',
+    allow_fetch: !!source.allow_fetch,
+  }));
+}
+
+function getEditableSources(collectionId) {
+  if (!collectionId) return [];
+  if (!RUNNER_STATE.sourceDrafts[collectionId]) {
+    const collection = findCollection(collectionId);
+    const base = collection?.ai_sources?.length ? collection.ai_sources : buildLegacySources(collection);
+    RUNNER_STATE.sourceDrafts[collectionId] = cloneSources(base);
+  }
+  return RUNNER_STATE.sourceDrafts[collectionId];
+}
+
+function renderSourceCollectionList() {
+  const container = document.getElementById('source-coll-list');
+  const collections = Object.values(RUNNER_STATE.collections);
+  if (!collections.length) {
+    container.innerHTML = '<div class="empty-state" style="min-height:160px;padding:18px"><strong>No collections yet</strong><p>Create or import a collection first.</p></div>';
+    return;
+  }
+  container.innerHTML = collections.map(collection => `
+    <button class="source-coll-btn ${collection.id === RUNNER_STATE.sourcesCollectionId ? 'active' : ''}" data-source-coll="${collection.id}">
+      ${esc(collection.name)}
+    </button>
+  `).join('');
+  container.querySelectorAll('[data-source-coll]').forEach(button => {
+    button.addEventListener('click', () => {
+      RUNNER_STATE.sourcesCollectionId = button.dataset.sourceColl;
+      renderSourceCollectionList();
+      renderSourcesEditor();
+    });
+  });
+}
+
+function renderSourcesEditor() {
+  const collection = findCollection(RUNNER_STATE.sourcesCollectionId);
+  const empty = document.getElementById('source-empty');
+  const list = document.getElementById('source-list');
+  const title = document.getElementById('source-coll-title');
+  const subtitle = document.getElementById('source-coll-subtitle');
+  document.getElementById('sources-err').textContent = '';
+
+  if (!collection) {
+    empty.style.display = '';
+    list.style.display = 'none';
+    title.textContent = 'Select a collection';
+    subtitle.textContent = 'Store multiple links, notes, and copied file contents for AI-assisted generation and debugging.';
+    return;
+  }
+
+  const sources = getEditableSources(collection.id);
+  empty.style.display = 'none';
+  list.style.display = 'flex';
+  title.textContent = collection.name;
+  subtitle.textContent = `AI can read these saved sources while generating requests or suggesting fixes for ${collection.name}.`;
+  list.innerHTML = sources.length ? sources.map((source, index) => renderSourceCard(source, index)).join('') : `
+    <div class="empty-state" style="min-height:220px">
+      <strong>No AI sources saved yet</strong>
+      <p>Add a Swagger link, copied docs note, or a pasted file snippet for this collection. These will be reused by AI fix and request generation.</p>
+    </div>`;
+
+  list.querySelectorAll('.source-type').forEach(input => {
+    input.addEventListener('change', event => {
+      const item = sources[Number(event.target.dataset.index)];
+      item.type = event.target.value;
+      if (item.type !== 'url') item.allow_fetch = false;
+      renderSourcesEditor();
+    });
+  });
+  list.querySelectorAll('.source-label').forEach(input => {
+    input.addEventListener('input', event => {
+      sources[Number(event.target.dataset.index)].label = event.target.value;
+    });
+  });
+  list.querySelectorAll('.source-content').forEach(input => {
+    input.addEventListener('input', event => {
+      sources[Number(event.target.dataset.index)].content = event.target.value;
+    });
+  });
+  list.querySelectorAll('.source-fetch-input').forEach(input => {
+    input.addEventListener('change', event => {
+      sources[Number(event.target.dataset.index)].allow_fetch = event.target.checked;
+    });
+  });
+  list.querySelectorAll('.source-del').forEach(button => {
+    button.addEventListener('click', () => {
+      sources.splice(Number(button.dataset.index), 1);
+      renderSourcesEditor();
+    });
+  });
+}
+function renderSourceCard(source, index) {
+  const isUrl = source.type === 'url';
+  const isLong = source.type !== 'url';
+  return `
+    <div class="source-card">
+      <div class="source-top">
+        <select class="source-type" data-index="${index}">
+          <option value="url" ${source.type === 'url' ? 'selected' : ''}>Link / Swagger</option>
+          <option value="note" ${source.type === 'note' ? 'selected' : ''}>Note</option>
+          <option value="file" ${source.type === 'file' ? 'selected' : ''}>File Text</option>
+        </select>
+        <input class="source-label" data-index="${index}" type="text" placeholder="Title" value="${esc(source.label)}"/>
+        <label class="source-fetch" style="${isUrl ? '' : 'visibility:hidden'}">
+          <input class="source-fetch-input" data-index="${index}" type="checkbox" ${source.allow_fetch ? 'checked' : ''}/>
+          Allow live fetch
+        </label>
+        <button class="source-del" data-index="${index}" type="button">×</button>
+      </div>
+      ${isLong
+        ? `<textarea class="source-content" data-index="${index}" placeholder="${source.type === 'file' ? 'Paste file content or imported text...' : 'Paste notes for AI...'}">${esc(source.content)}</textarea>`
+        : `<input class="source-content" data-index="${index}" type="text" placeholder="https://api.example.com/openapi.json" value="${esc(source.content)}"/>`}
+      <div class="source-helper">${isUrl
+        ? 'Use this for Swagger URLs, developer portals, OpenAPI endpoints, or any docs page AI may need to inspect.'
+        : source.type === 'file'
+          ? 'Saved file content stays with the collection so AI can reference auth rules, schemas, payload examples, or copied API docs.'
+          : 'Use notes for tenant rules, auth quirks, payload conventions, or any context that should stay attached to the collection.'}</div>
+    </div>`;
+}
+
+function addSource(type, payload = {}) {
+  const collectionId = RUNNER_STATE.sourcesCollectionId;
+  if (!collectionId) {
+    showToast('Select a collection first.', true);
+    return;
+  }
+  const sources = getEditableSources(collectionId);
+  sources.push({
+    id: uniqueId('source'),
+    type,
+    label: payload.label || '',
+    content: payload.content || '',
+    allow_fetch: !!payload.allow_fetch,
+  });
+  renderSourcesEditor();
+}
+
+async function importSourceFile(file) {
+  if (!file) return;
+  let text = await file.text();
+  if (text.length > 20000) {
+    text = `${text.slice(0, 20000)}\n\n[Truncated by PostFreely after 20,000 characters for local storage.]`;
+  }
+  addSource('file', { label: file.name, content: text });
+}
+
+async function saveSources() {
+  const collectionId = RUNNER_STATE.sourcesCollectionId;
+  const collection = findCollection(collectionId);
+  if (!collection) {
+    document.getElementById('sources-err').textContent = 'Select a collection first.';
+    return;
+  }
+  const sources = getEditableSources(collectionId)
+    .map(source => ({
+      id: source.id || uniqueId('source'),
+      type: source.type || 'note',
+      label: (source.label || '').trim(),
+      content: (source.content || '').trim(),
+      allow_fetch: source.type === 'url' ? !!source.allow_fetch : false,
+    }))
+    .filter(source => source.content);
+
+  if (!sources.length) {
+    document.getElementById('sources-err').textContent = 'Add at least one link, note, or file before saving.';
+    return;
+  }
+
+  const updated = await API.updateCollection(collectionId, {
+    ai_sources: sources,
+  });
+  if (updated?.error) {
+    document.getElementById('sources-err').textContent = updated.error;
+    return;
+  }
+  RUNNER_STATE.collections[collectionId] = updated;
+  RUNNER_STATE.sourceDrafts[collectionId] = cloneSources(updated.ai_sources || sources);
+  closeModal('sources-modal');
+  renderConfigState();
+  showToast(`Saved AI sources for ${updated.name}.`);
+}
+
+function openSourcesModal() {
+  const currentCollectionId = document.getElementById('r-coll-sel').value;
+  if (!RUNNER_STATE.sourcesCollectionId || !findCollection(RUNNER_STATE.sourcesCollectionId)) {
+    RUNNER_STATE.sourcesCollectionId = currentCollectionId || Object.keys(RUNNER_STATE.collections)[0] || '';
+  } else if (currentCollectionId) {
+    RUNNER_STATE.sourcesCollectionId = currentCollectionId;
+  }
+  renderSourceCollectionList();
+  renderSourcesEditor();
+  openModal('sources-modal');
+}
+
+function setRunUiState() {
+  const runBtn = document.getElementById('r-run-btn');
+  const stopBtn = document.getElementById('r-stop-btn');
+  const banner = document.getElementById('r-run-banner');
+
+  runBtn.disabled = RUNNER_STATE.isRunning;
+  stopBtn.style.display = RUNNER_STATE.isRunning ? '' : 'none';
+  stopBtn.disabled = !RUNNER_STATE.isRunning;
+  stopBtn.textContent = RUNNER_STATE.isStopping ? 'Stopping...' : 'Stop';
+  document.getElementById('r-rerun-btn').disabled = RUNNER_STATE.isRunning || !RUNNER_STATE.runData;
+  document.getElementById('export-btn').disabled = !RUNNER_STATE.runData || RUNNER_STATE.isRunning;
+
+  if (RUNNER_STATE.isRunning) {
+    banner.className = 'run-banner show';
+    banner.innerHTML = `<div><span class="spin-dot"></span><strong>${RUNNER_STATE.isStopping ? 'Stopping run...' : 'Running collection...'}</strong><div style="margin-top:6px;color:var(--text2);font-size:12px">${RUNNER_STATE.isStopping ? 'Waiting for the current request to finish, then PostFreely will stop cleanly and keep partial results.' : 'The runner will keep result space here while the data drawer stays collapsed.'}</div></div>`;
+  } else if (!RUNNER_STATE.runData) {
+    banner.className = 'run-banner';
+    banner.innerHTML = '';
+  }
+}
+
+function renderResultsEmpty(message) {
+  document.getElementById('r-summary').innerHTML = '';
+  document.getElementById('r-groups').innerHTML = '';
+  const empty = document.getElementById('r-results-empty');
+  empty.style.display = 'flex';
+  empty.innerHTML = `<strong>No run output yet</strong><p>${esc(message || 'When you start a collection run, PostFreely will keep the result workspace here with grouped iterations, expandable request responses, response headers, iteration row data, and AI-assisted fix suggestions for failures.')}</p>`;
+  document.getElementById('export-btn').disabled = true;
+  document.getElementById('r-rerun-btn').disabled = true;
+}
+
+function runResultKey(result) {
+  return `${result.iteration}:${result.request_id}`;
+}
+
+function setSummaryFilter(filter) {
+  RUNNER_STATE.summaryFilter = filter || 'all';
+  if (RUNNER_STATE.runData) renderRunResults(RUNNER_STATE.runData, { scroll: false });
+}
+
+function renderRunResults(run, options = {}) {
+  RUNNER_STATE.runData = run;
+  const shouldScroll = !!options.scroll;
+  const hasResults = !!(run.results || []).length;
+  document.getElementById('r-results-empty').style.display = hasResults ? 'none' : 'flex';
+  document.getElementById('export-btn').disabled = !hasResults;
+  document.getElementById('r-rerun-btn').disabled = RUNNER_STATE.isRunning || !RUNNER_STATE.runData;
+
+  if (!hasResults) {
+    document.getElementById('r-results-empty').innerHTML = `<strong>${run.status === 'running' || run.status === 'stopping' ? 'Waiting for first response' : 'No run output yet'}</strong><p>${esc(run.status === 'running' || run.status === 'stopping'
+      ? 'The collection is running live. Iteration cards and status codes will appear here as soon as the first request finishes.'
+      : 'When you start a collection run, PostFreely will keep the result workspace here with grouped iterations, expandable request responses, response headers, iteration row data, and AI-assisted fix suggestions for failures.')}</p>`;
+  }
+
+  const avg = run.total_requests ? Math.round(run.total_ms / run.total_requests) : 0;
+  const activeFilter = RUNNER_STATE.summaryFilter || 'all';
+  document.getElementById('r-summary').innerHTML = `
+    <div class="summary-filter-note">${activeFilter === 'failed'
+      ? 'Filtering to iterations with one or more failed requests.'
+      : activeFilter === 'passed'
+        ? 'Filtering to iterations where every request passed.'
+        : 'Showing all iterations.'}</div>
+    <div class="summary-grid">
+      <div class="sum-card filterable ${activeFilter === 'all' ? 'active' : ''}" data-summary-filter="all"><div class="sum-num">${run.total_requests}</div><div class="sum-lbl">Executed</div></div>
+      <div class="sum-card"><div class="sum-num">${run.planned_requests || run.total_requests}</div><div class="sum-lbl">Planned</div></div>
+      <div class="sum-card filterable ${activeFilter === 'passed' ? 'active' : ''}" data-summary-filter="passed"><div class="sum-num pass">${run.total_pass}</div><div class="sum-lbl">Passed</div></div>
+      <div class="sum-card filterable ${activeFilter === 'failed' ? 'active' : ''}" data-summary-filter="failed"><div class="sum-num fail">${run.total_fail}</div><div class="sum-lbl">Failed</div></div>
+      <div class="sum-card"><div class="sum-num">${run.total_ms}ms</div><div class="sum-lbl">Total Time</div></div>
+      <div class="sum-card"><div class="sum-num">${avg}ms</div><div class="sum-lbl">Avg Time</div></div>
+    </div>`;
+
+  const grouped = new Map();
+  (run.results || []).forEach(result => {
+    const key = result.iteration || 1;
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(result);
+  });
+
+  const filteredEntries = [...grouped.entries()].sort((a, b) => Number(a[0]) - Number(b[0])).filter(([, results]) => {
+    if (activeFilter === 'failed') return results.some(result => !result.passed);
+    if (activeFilter === 'passed') return results.length > 0 && results.every(result => result.passed);
+    return true;
+  });
+
+  document.getElementById('r-groups').innerHTML = filteredEntries.length
+    ? filteredEntries.map(([iteration, results]) => renderIterationGroup(iteration, results)).join('')
+    : `<div class="empty-state" style="min-height:200px"><strong>No ${activeFilter === 'failed' ? 'failed' : 'passed'} iterations yet</strong><p>${activeFilter === 'failed' ? 'Everything shown so far is passing, so there are no failed iterations to review in this run.' : 'No fully passing iterations yet. Clear the filter to see everything, including mixed or failed iterations.'}</p></div>`;
+
+  document.querySelectorAll('[data-summary-filter]').forEach(card => {
+    card.addEventListener('click', () => setSummaryFilter(card.dataset.summaryFilter));
+  });
+
+  document.querySelectorAll('.iteration-head').forEach(button => {
+    button.addEventListener('click', () => {
+      const iterationKey = button.dataset.iteration;
+      RUNNER_STATE.iterationOpenState[iterationKey] = !RUNNER_STATE.iterationOpenState[iterationKey];
+      button.closest('.iteration-group').classList.toggle('open', RUNNER_STATE.iterationOpenState[iterationKey]);
+    });
+  });
+  document.querySelectorAll('.result-summary').forEach(button => {
+    button.addEventListener('click', () => {
+      const resultKey = button.dataset.resultKey;
+      RUNNER_STATE.resultOpenState[resultKey] = !RUNNER_STATE.resultOpenState[resultKey];
+      button.closest('.result-item').classList.toggle('open', RUNNER_STATE.resultOpenState[resultKey]);
+    });
+  });
+  document.querySelectorAll('.runner-fix-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      askAiFix(button.dataset.requestId, Number(button.dataset.iteration), button.dataset.outputId);
+    });
+  });
+  document.querySelectorAll('.runner-summary-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      askAiSummary(button.dataset.requestId, Number(button.dataset.iteration), button.dataset.outputId);
+    });
+  });
+  document.querySelectorAll('.runner-answer-btn').forEach(button => {
+    button.addEventListener('click', () => {
+      askAiAnswer(button.dataset.requestId, Number(button.dataset.iteration), button.dataset.outputId);
+    });
+  });
+
+  const banner = document.getElementById('r-run-banner');
+  if (run.status === 'running') {
+    banner.className = 'run-banner show';
+    banner.innerHTML = `<div><strong>Running live</strong><div style="margin-top:6px;color:var(--text2);font-size:12px">${run.total_requests} of ${run.planned_requests || 0} request(s) completed across ${run.completed_iterations || 0} iteration(s). New rows appear below as they finish.</div></div>`;
+  } else if (run.status === 'stopping') {
+    banner.className = 'run-banner show error';
+    banner.innerHTML = `<div><strong>Stopping run...</strong><div style="margin-top:6px;color:var(--text2);font-size:12px">Stop requested. PostFreely is waiting for the active request to finish, then it will keep the partial results here.</div></div>`;
+  } else if (run.status === 'stopped') {
+    banner.className = 'run-banner show error';
+    banner.innerHTML = `<div><strong>Run stopped early</strong><div style="margin-top:6px;color:var(--text2);font-size:12px">${esc(run.stopped_reason || 'Stopped by user')} - kept ${run.total_requests} executed request(s) across ${run.completed_iterations || 0} completed iteration(s).</div></div>`;
+  } else if (run.status === 'error') {
+    banner.className = 'run-banner show error';
+    banner.innerHTML = `<div><strong>Run failed</strong><div style="margin-top:6px;color:var(--text2);font-size:12px">${esc(run.error || 'Unexpected runner error')}</div></div>`;
+  } else {
+    banner.className = 'run-banner show';
+    banner.innerHTML = `<div><strong>Run complete</strong><div style="margin-top:6px;color:var(--text2);font-size:12px">Finished ${run.total_requests} request(s) across ${run.iterations} iteration(s). Expand any row below to inspect the response.</div></div>`;
+  }
+
+  if (shouldScroll) {
+    document.getElementById('results-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+function renderIterationGroup(iteration, results) {
+  const failed = results.filter(result => !result.passed).length;
+  const firstRow = results.find(result => result.data_row && Object.keys(result.data_row).length);
+  const rowLabel = firstRow ? `Row ${firstRow.data_row.__row_number || iteration}` : 'No row data';
+  const iterationKey = String(iteration);
+  const open = !!RUNNER_STATE.iterationOpenState[iterationKey];
+
+  return `
+    <section class="iteration-group ${open ? 'open' : ''}">
+      <button class="iteration-head" type="button" data-iteration="${iterationKey}">
+        <div class="iteration-head-main">
+          <div class="iteration-index">${iteration}</div>
+          <div>
+            <div class="iteration-title">Iteration ${iteration}</div>
+            <div class="iteration-meta">
+              <span>${esc(rowLabel)}</span>
+              <span>${results.length} request(s)</span>
+              <span>${failed ? `${failed} failed` : 'All passed'}</span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="status-compact ${failed ? 'fail' : 'pass'}">${failed ? 'Needs review' : 'Healthy run'}</div>
+          <div class="iteration-chevron">›</div>
+        </div>
+      </button>
+      <div class="iteration-body">
+        <div class="result-list">
+          ${results.map((result, index) => renderResultItem(result, index + 1)).join('')}
+        </div>
+      </div>
+    </section>`;
+}
+
+function renderResultItem(result, index) {
+  const response = result.response || {};
+  const headers = Object.entries(response.headers || {}).slice(0, 40).map(([key, value]) => `${key}: ${value}`).join('\n');
+  const dataRow = result.data_row && Object.keys(result.data_row).length
+    ? JSON.stringify(result.data_row, null, 2)
+    : 'No row data attached to this iteration.';
+  const responseBody = response.body || result.body_preview || result.error_detail || 'No response body returned.';
+  const errorSummary = result.error || `${result.status_code || 0} ${result.status_text || 'Request failed'}`;
+  const aiOutputId = uniqueId('runner-ai');
+  const resultKey = runResultKey(result);
+  const isOpen = !!RUNNER_STATE.resultOpenState[resultKey];
+
+  return `
+    <article class="result-item ${isOpen ? 'open' : ''}">
+      <button class="result-summary" type="button" data-result-key="${resultKey}">
+        <span class="result-index">${index}</span>
+        <span class="result-name">
+          <b>${esc(result.request_name || result.url || 'Request')}</b>
+          <small>${esc(result.url || '')}</small>
+        </span>
+        <span class="meth ${methodBadge(result.method)}">${esc(result.method || 'GET')}</span>
+        <span class="status-compact ${result.response?.execution_mode === 'browser' ? 'pass' : ''}">${esc((result.response?.execution_mode || 'proxy').toUpperCase())}</span>
+        <span class="result-status ${result.passed ? 'pass' : 'fail'}">${result.status_code || 0}</span>
+        <span class="hide-md" style="color:var(--text2);font-size:12px">${esc(result.status_text || '')}</span>
+        <span class="hide-md" style="color:var(--text2);font-size:12px">${result.elapsed_ms || 0}ms</span>
+        <span class="result-chevron">⌄</span>
+      </button>
+      <div class="result-detail">
+        ${result.passed ? '' : `
+          <div class="detail-hint">
+            <strong>${esc(errorSummary)}</strong><br>
+            ${esc(result.error_hint || 'Review the response body, auth, URL, and collection variables before retrying.')}
+          </div>`}
+        <div class="detail-grid">
+          <div class="detail-card">
+            <h4>Response Body</h4>
+            <div class="detail-pre">${esc(responseBody)}</div>
+          </div>
+          <div class="detail-card">
+            <h4>Headers</h4>
+            <div class="detail-pre">${esc(headers || 'No headers returned.')}</div>
+          </div>
+          <div class="detail-card">
+            <h4>Iteration Data</h4>
+            <div class="detail-pre">${esc(dataRow)}</div>
+          </div>
+        </div>
+        <div class="detail-actions">
+          <div class="file-chip">${formatSize(result.size_bytes || 0)} - ${result.elapsed_ms || 0}ms - ${esc(result.status_text || '')}</div>
+          ${result.passed
+            ? `
+              <button class="r-secondary-btn runner-summary-btn" data-request-id="${esc(result.request_id)}" data-iteration="${result.iteration}" data-output-id="${aiOutputId}" type="button">AI Summary</button>
+              <button class="r-secondary-btn runner-answer-btn" data-request-id="${esc(result.request_id)}" data-iteration="${result.iteration}" data-output-id="${aiOutputId}" type="button">Find Answer</button>
+            `
+            : `<button class="r-secondary-btn runner-fix-btn" data-request-id="${esc(result.request_id)}" data-iteration="${result.iteration}" data-output-id="${aiOutputId}" type="button">Ask AI To Fix</button>`}
+        </div>
+        <div class="runner-ai-output" id="${aiOutputId}"></div>
+      </div>
+    </article>`;
+}
+
+async function askAiFix(requestId, iteration, outputId) {
+  const output = document.getElementById(outputId);
+  if (!RUNNER_STATE.settings.ai_provider) {
+    output.style.display = 'block';
+    output.className = 'runner-ai-output error';
+    output.textContent = 'Configure AI first from the main app before asking for a fix here.';
+    return;
+  }
+
+  const collectionId = document.getElementById('r-coll-sel').value;
+  const collection = findCollection(collectionId);
+  const request = (collection?.requests || []).find(item => item.id === requestId);
+  const result = (RUNNER_STATE.runData?.results || []).find(item => item.request_id === requestId && Number(item.iteration) === Number(iteration));
+  if (!collection || !request || !result) {
+    output.style.display = 'block';
+    output.className = 'runner-ai-output error';
+    output.textContent = 'Could not load the request context for this runner result.';
+    return;
+  }
+
+  output.style.display = 'block';
+  output.className = 'runner-ai-output';
+  output.textContent = 'Reviewing request, response, collection context, and saved AI sources...';
+
+  const aiResult = await API.aiFix({
+    request: {
+      name: request.name,
+      method: request.method,
+      url: request.url,
+      params: request.params || [],
+      headers: request.headers || [],
+      body: request.body || '',
+      bodyType: request.bodyType || 'json',
+      auth: request.auth || { type: 'none' },
+      prescript: request.prescript || '',
+      postscript: request.postscript || '',
+    },
+    response: result.response || {},
+    collection_id: collectionId,
+  });
+
+  if (aiResult.error) {
+    output.className = 'runner-ai-output error';
+    output.textContent = `Fix suggestion failed: ${aiResult.error}`;
+    return;
+  }
+
+  const intro = aiResult.docs_fetched ? `Fetched docs from ${aiResult.docs_url || 'saved source'}\n\n` : '';
+  output.className = 'runner-ai-output';
+  output.textContent = `${intro}${aiResult.suggestion || 'No suggestion returned.'}`;
+}
+
+function getRunnerAiContext(requestId, iteration, outputId) {
+  const output = document.getElementById(outputId);
+  const collectionId = document.getElementById('r-coll-sel').value;
+  const collection = findCollection(collectionId);
+  const request = (collection?.requests || []).find(item => item.id === requestId);
+  const result = (RUNNER_STATE.runData?.results || []).find(item => item.request_id === requestId && Number(item.iteration) === Number(iteration));
+  return { output, collectionId, collection, request, result };
+}
+
+async function askAiSummary(requestId, iteration, outputId) {
+  const { output, collectionId, result } = getRunnerAiContext(requestId, iteration, outputId);
+  if (!RUNNER_STATE.settings.ai_provider) {
+    output.style.display = 'block';
+    output.className = 'runner-ai-output error';
+    output.textContent = 'Configure AI first from the main app before using runner AI actions.';
+    return;
+  }
+  if (!result) {
+    output.style.display = 'block';
+    output.className = 'runner-ai-output error';
+    output.textContent = 'Could not load this response for AI.';
+    return;
+  }
+
+  output.style.display = 'block';
+  output.className = 'runner-ai-output';
+  output.textContent = 'Summarizing response...';
+
+  const aiResult = await API.aiChat({
+    message: 'Summarize this successful API response. Highlight the most important fields, IDs, counts, and what this result means for the workflow.',
+    api_response: result.response || {},
+    collection_id: collectionId,
+    history: [],
+  });
+
+  if (aiResult.error) {
+    output.className = 'runner-ai-output error';
+    output.textContent = `Summary failed: ${aiResult.error}`;
+    return;
+  }
+
+  output.className = 'runner-ai-output';
+  output.textContent = aiResult.reply || 'No summary returned.';
+}
+
+async function askAiAnswer(requestId, iteration, outputId) {
+  const { output, collectionId, result } = getRunnerAiContext(requestId, iteration, outputId);
+  if (!RUNNER_STATE.settings.ai_provider) {
+    output.style.display = 'block';
+    output.className = 'runner-ai-output error';
+    output.textContent = 'Configure AI first from the main app before using runner AI actions.';
+    return;
+  }
+  if (!result) {
+    output.style.display = 'block';
+    output.className = 'runner-ai-output error';
+    output.textContent = 'Could not load this response for AI.';
+    return;
+  }
+
+  const question = prompt('What do you want to know from this response?');
+  if (!question) return;
+
+  output.style.display = 'block';
+  output.className = 'runner-ai-output';
+  output.textContent = 'Asking AI about this response...';
+
+  const aiResult = await API.aiChat({
+    message: question,
+    api_response: result.response || {},
+    collection_id: collectionId,
+    history: [],
+  });
+
+  if (aiResult.error) {
+    output.className = 'runner-ai-output error';
+    output.textContent = `Answer lookup failed: ${aiResult.error}`;
+    return;
+  }
+
+  output.className = 'runner-ai-output';
+  output.textContent = aiResult.reply || 'No answer returned.';
+}
+
+async function stopRun() {
+  if (!RUNNER_STATE.activeRunId || !RUNNER_STATE.isRunning || RUNNER_STATE.isStopping) return;
+  RUNNER_STATE.isStopping = true;
+  RUNNER_STATE.stopRequested = true;
+  setRunUiState();
+  if (RUNNER_STATE.runData) {
+    RUNNER_STATE.runData.status = 'stopping';
+    renderRunResults(RUNNER_STATE.runData, { scroll: false });
+  }
+  showToast('Stop requested. Waiting for the active request to finish...');
+}
+
+function clearRunPoller() {
+  if (RUNNER_STATE.pollTimer) {
+    clearTimeout(RUNNER_STATE.pollTimer);
+    RUNNER_STATE.pollTimer = null;
+  }
+}
+
+async function runCollection() {
+  const collectionId = document.getElementById('r-coll-sel').value;
+  const envId = document.getElementById('r-env-sel').value;
+  const iterations = RUNNER_STATE.dataRows.length || (parseInt(document.getElementById('r-iters').value, 10) || 1);
+  const delayMs = parseInt(document.getElementById('r-delay').value, 10) || 0;
+  const parallel = parseInt(document.getElementById('r-parallel').value, 10) || 1;
+
+  if (!collectionId) {
+    showToast('Select a collection first.', true);
+    return;
+  }
+
+  const collection = findCollection(collectionId);
+  const requestDefs = (collection?.requests || []).map(normalizeRunnerRequest);
+  if (!collection || !requestDefs.length) {
+    showToast('This collection has no runnable requests yet.', true);
+    return;
+  }
+  collection.requests = requestDefs;
+
+  RUNNER_STATE.isRunning = true;
+  RUNNER_STATE.isStopping = false;
+  RUNNER_STATE.stopRequested = false;
+  RUNNER_STATE.activeRunId = uniqueId('run');
+  RUNNER_STATE.lastResultCount = 0;
+  RUNNER_STATE.summaryFilter = 'all';
+  RUNNER_STATE.iterationOpenState = {};
+  RUNNER_STATE.resultOpenState = {};
+  RUNNER_STATE.runData = createRunState(
+    RUNNER_STATE.activeRunId,
+    collection,
+    requestDefs,
+    RUNNER_STATE.dataRows.length ? RUNNER_STATE.dataRows.length : Math.max(iterations, 1),
+    RUNNER_STATE.dataRows.length,
+    Math.max(1, parallel),
+  );
+  setRunUiState();
+  closeDataDrawer();
+  renderRunResults(RUNNER_STATE.runData, { scroll: true });
+
+  try {
+    const totalIterations = RUNNER_STATE.runData.iterations;
+    let nextIteration = 1;
+    const rows = RUNNER_STATE.dataRows.length ? RUNNER_STATE.dataRows : Array.from({ length: totalIterations }, () => ({}));
+    const workerCount = Math.max(1, Math.min(parallel, totalIterations));
+
+    const workers = Array.from({ length: workerCount }, async () => {
+      while (nextIteration <= totalIterations && !RUNNER_STATE.stopRequested) {
+        const iteration = nextIteration++;
+        await executeIteration(RUNNER_STATE.runData, collection, envId || null, requestDefs, iteration, rows[iteration - 1] || {}, delayMs);
+      }
+    });
+
+    await Promise.all(workers);
+
+    if (RUNNER_STATE.stopRequested) {
+      RUNNER_STATE.runData.status = 'stopped';
+      RUNNER_STATE.runData.stopped_reason = 'Stopped by user';
+    } else {
+      RUNNER_STATE.runData.status = 'completed';
+    }
+    RUNNER_STATE.runData.finished_at = Date.now();
+    renderRunResults(RUNNER_STATE.runData, { scroll: false });
+    Object.assign(RUNNER_STATE.collections[collectionId], collection);
+    showToast(RUNNER_STATE.stopRequested ? 'Run stopped.' : 'Run complete.');
+  } catch (error) {
+    const banner = document.getElementById('r-run-banner');
+    banner.className = 'run-banner show error';
+    banner.innerHTML = `<div><strong>Run failed</strong><div style="margin-top:6px;color:var(--text2);font-size:12px">${esc(error.message || String(error))}</div></div>`;
+    renderResultsEmpty('The runner could not finish. Check the error banner above, verify the collection selection, and try again.');
+    if (RUNNER_STATE.runData) {
+      RUNNER_STATE.runData.status = 'error';
+      RUNNER_STATE.runData.error = error.message || String(error);
+      RUNNER_STATE.runData.finished_at = Date.now();
+      renderRunResults(RUNNER_STATE.runData, { scroll: false });
+    }
+  } finally {
+    RUNNER_STATE.isRunning = false;
+    RUNNER_STATE.isStopping = false;
+    RUNNER_STATE.stopRequested = false;
+    RUNNER_STATE.activeRunId = '';
+    clearRunPoller();
+    setRunUiState();
+  }
+}
+
+function exportResults() {
+  if (!RUNNER_STATE.runData) return;
+  const blob = new Blob([JSON.stringify(RUNNER_STATE.runData, null, 2)], { type: 'application/json' });
+  const anchor = document.createElement('a');
+  anchor.href = URL.createObjectURL(blob);
+  anchor.download = 'runner-results.json';
+  anchor.click();
+}
+
+async function init() {
+  const params = new URLSearchParams(window.location.search);
+  const preselect = params.get('cid') || '';
+  const saved = restoreRunnerPrefs();
+
+  const publicConfig = await API.getPublicConfig();
+  if (publicConfig?.auth_required && !API.getSession()?.access_token) {
+    throw new Error('Sign in from the main PostFreely app first, then reopen the runner.');
+  }
+
+  const [collections, envs, settings] = await Promise.all([
+    API.getCollections(),
+    API.getEnvironments(),
+    API.getSettings(),
+  ]);
+
+  if (collections?.error) throw new Error(collections.error);
+  if (envs?.error) throw new Error(envs.error);
+  if (settings?.error) throw new Error(settings.error);
+
+  RUNNER_STATE.collections = collections || {};
+  Object.values(RUNNER_STATE.collections).forEach(collection => {
+    collection.requests = (collection.requests || []).map(normalizeRunnerRequest);
+  });
+  RUNNER_STATE.envs = envs?.envs || {};
+  RUNNER_STATE.manualIterations = Number(saved.manualIterations || 1) || 1;
+
+  applySettings(settings || {});
+
+  const collectionSelect = document.getElementById('r-coll-sel');
+  collectionSelect.innerHTML = '<option value="">Select collection...</option>' +
+    Object.values(RUNNER_STATE.collections).map(collection =>
+      `<option value="${collection.id}" ${(collection.id === preselect || collection.id === saved.collectionId) ? 'selected' : ''}>${esc(collection.name)}</option>`
+    ).join('');
+
+  const envSelect = document.getElementById('r-env-sel');
+  const activeEnv = saved.envId || envs?.active || '';
+  envSelect.innerHTML = '<option value="">No Environment</option>' +
+    Object.values(RUNNER_STATE.envs).map(env =>
+      `<option value="${env.id}" ${env.id === activeEnv ? 'selected' : ''}>${esc(env.name)}</option>`
+    ).join('');
+
+  document.getElementById('r-delay').value = saved.delayMs || '0';
+  document.getElementById('r-parallel').value = saved.parallel || String(settings?.runner_parallel || 4);
+  document.getElementById('r-iters').value = RUNNER_STATE.manualIterations;
+
+  collectionSelect.addEventListener('change', () => {
+    renderConfigState();
+    persistRunnerPrefs();
+  });
+  envSelect.addEventListener('change', persistRunnerPrefs);
+  document.getElementById('r-delay').addEventListener('input', persistRunnerPrefs);
+  document.getElementById('r-parallel').addEventListener('input', persistRunnerPrefs);
+  document.getElementById('r-iters').addEventListener('input', event => {
+    RUNNER_STATE.manualIterations = parseInt(event.target.value, 10) || 1;
+    renderConfigState();
+  });
+
+  document.getElementById('r-data-file').addEventListener('change', async event => {
+    try {
+      await loadDataFile(event.target.files?.[0]);
+    } catch (error) {
+      clearDataFile();
+      showToast(error.message, true);
+    }
+  });
+  document.getElementById('r-pick-data-btn').addEventListener('click', () => document.getElementById('r-data-file').click());
+  document.getElementById('r-clear-data-btn').addEventListener('click', clearDataFile);
+  document.getElementById('r-open-data-btn').addEventListener('click', openDataDrawer);
+  document.getElementById('r-change-data-btn').addEventListener('click', openDataDrawer);
+  document.getElementById('r-close-data-btn').addEventListener('click', closeDataDrawer);
+  document.getElementById('data-drawer-backdrop').addEventListener('click', closeDataDrawer);
+
+  document.getElementById('r-run-btn').addEventListener('click', runCollection);
+  document.getElementById('r-stop-btn').addEventListener('click', stopRun);
+  document.getElementById('r-rerun-btn').addEventListener('click', runCollection);
+  document.getElementById('export-btn').addEventListener('click', exportResults);
+
+  document.getElementById('r-open-sources-btn').addEventListener('click', openSourcesModal);
+  document.querySelectorAll('[data-close-modal]').forEach(button => {
+    button.addEventListener('click', () => closeModal(button.dataset.closeModal));
+  });
+  document.getElementById('source-add-url-btn').addEventListener('click', () => addSource('url', { label: 'Swagger / Docs URL', allow_fetch: true }));
+  document.getElementById('source-add-note-btn').addEventListener('click', () => addSource('note', { label: 'API Notes' }));
+  document.getElementById('source-import-file-btn').addEventListener('click', () => document.getElementById('source-file-input').click());
+  document.getElementById('source-file-input').addEventListener('change', async event => {
+    try {
+      await importSourceFile(event.target.files?.[0]);
+      event.target.value = '';
+    } catch (error) {
+      document.getElementById('sources-err').textContent = error.message || String(error);
+    }
+  });
+  document.getElementById('save-sources-btn').addEventListener('click', saveSources);
+
+  renderDataPreview();
+  renderConfigState();
+  renderResultsEmpty();
+  setRunUiState();
+}
+
+init().catch(error => {
+  document.body.innerHTML = `<div style="padding:36px;color:#ff5c7c;font-family:monospace"><h2>Runner failed to start</h2><pre>${esc(error.message || String(error))}</pre></div>`;
+});
+</script>
+</body>
+</html>

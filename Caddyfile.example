@@ -1,0 +1,4 @@
+your-subdomain.example.com {
+  encode gzip zstd
+  reverse_proxy postfreely:5000
+}

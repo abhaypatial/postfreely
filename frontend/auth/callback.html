@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>PostFreely Auth</title>
+<style>
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    background: #09111c;
+    color: #d9e4ff;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  .card {
+    width: min(480px, calc(100vw - 32px));
+    padding: 28px;
+    border-radius: 24px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(10, 18, 30, 0.86);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.36);
+  }
+  h1 { margin: 0 0 10px; font-size: 28px; }
+  p { margin: 0; color: #9cb4d8; line-height: 1.7; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Signing you in</h1>
+    <p id="auth-msg">PostFreely is finishing the secure redirect and restoring your workspace.</p>
+  </div>
+<script>
+  const SESSION_KEY = 'postfreely.session.v1';
+  const msg = document.getElementById('auth-msg');
+  const params = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  const accessToken = params.get('access_token') || '';
+  const refreshToken = params.get('refresh_token') || '';
+  const expiresAt = Number(params.get('expires_at') || 0);
+  const expiresIn = Number(params.get('expires_in') || 0);
+
+  if (!accessToken) {
+    msg.textContent = 'The login redirect did not return an access token. Go back and try again.';
+  } else {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      expires_at: expiresAt,
+      expires_in: expiresIn,
+      token_type: params.get('token_type') || 'bearer',
+    }));
+    window.location.replace('/');
+  }
+</script>
+</body>
+</html>

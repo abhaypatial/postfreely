@@ -1,0 +1,33 @@
+services:
+  postfreely:
+    build: .
+    container_name: postfreely
+    restart: unless-stopped
+    env_file:
+      - .env
+    expose:
+      - "5000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/healthz', timeout=5)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  caddy:
+    image: caddy:2
+    container_name: postfreely-caddy
+    restart: unless-stopped
+    depends_on:
+      - postfreely
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

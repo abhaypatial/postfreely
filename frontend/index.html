@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>PostFreely</title>
+<link rel="stylesheet" href="/assets/css/main.css"/>
+</head>
+<body>
+<div id="app">
+
+  <!-- TOPBAR -->
+  <div id="topbar">
+    <div id="logo">Post<span>Freely</span></div>
+    <div id="tab-bar"></div>
+    <button id="add-tab" title="New Tab (Ctrl+T)">+</button>
+    <div class="tb-right">
+      <button class="tb-btn" id="hist-btn">History</button>
+      <button class="tb-btn" id="env-btn">Environments</button>
+      <button class="tb-btn" id="ai-config-btn">AI Config</button>
+      <button class="tb-btn" id="theme-btn">Appearance</button>
+      <button class="tb-btn" id="runner-btn">Runner</button>
+      <div id="admin-scope-wrap" style="display:none">
+        <span class="tb-meta-label">Workspace</span>
+        <select id="admin-scope-sel"></select>
+      </div>
+      <button id="user-btn">Sign In</button>
+    </div>
+  </div>
+
+  <!-- WORKSPACE -->
+  <div id="workspace">
+
+    <!-- SIDEBAR -->
+    <div id="sidebar">
+      <div id="sb-header">
+        <span id="sb-header-title">Collections</span>
+        <button class="sb-btn" id="new-coll-btn" title="New Collection">+</button>
+        <button class="sb-btn" id="sidebar-toggle" title="Collapse sidebar">Hide</button>
+      </div>
+      <div id="sb-search">
+        <input id="sb-search-inp" type="text" placeholder="Search requests..."/>
+      </div>
+      <div id="collections-list"></div>
+      <div id="sb-footer">
+        <button id="sb-import-btn">Import JSON / cURL</button>
+      </div>
+    </div>
+
+    <!-- REQUEST + RESPONSE PANEL -->
+    <div id="req-panel">
+
+      <!-- ENV STRIP -->
+      <div id="env-strip">
+        <button id="sidebar-reopen" title="Show collections">
+          <span class="sidebar-reopen-icon">+</span>
+          <span class="sidebar-reopen-label">Collections</span>
+        </button>
+        <span id="env-vars-preview"></span>
+        <div id="env-strip-right">
+          <span id="env-strip-label">ENV</span>
+          <select id="env-sel"></select>
+          <button id="new-env-btn" class="tb-btn" style="padding:2px 8px;font-size:10px">+ New</button>
+          <button id="edit-env-btn">Edit</button>
+        </div>
+      </div>
+
+      <!-- URL BAR -->
+      <div id="url-bar">
+        <select id="method-sel">
+          <option>GET</option><option>POST</option><option>PUT</option>
+          <option>DELETE</option><option>PATCH</option><option>HEAD</option><option>OPTIONS</option>
+        </select>
+        <input id="url-inp" type="text" placeholder="https://api.example.com/endpoint  or  {{baseUrl}}/path"/>
+        <select id="transport-sel" title="Execution mode">
+          <option value="auto">Auto</option>
+          <option value="browser">Browser</option>
+          <option value="proxy">Proxy</option>
+        </select>
+        <button id="browser-check-btn" type="button">Check Browser</button>
+        <span id="browser-compat-status" class="req-compat-pill untested">Untested</span>
+        <button id="save-btn">Save</button>
+        <button id="generate-btn">Make with AI</button>
+        <button id="send-btn">Send</button>
+      </div>
+
+      <!-- SUB-TABS -->
+      <div id="req-subtabs">
+        <div class="stab active" data-st="params">Params <span class="cnt" id="params-cnt"></span></div>
+        <div class="stab" data-st="headers">Headers <span class="cnt" id="headers-cnt"></span></div>
+        <div class="stab" data-st="body">Body</div>
+        <div class="stab" data-st="auth">Auth</div>
+        <div class="stab" data-st="prescript">Pre-script</div>
+        <div class="stab" data-st="postscript">Post-script</div>
+      </div>
+
+      <!-- REQUEST CONTENT -->
+      <div id="req-content">
+
+        <!-- Params -->
+        <div class="spanel active" id="panel-params">
+          <div class="kv-grid" id="params-kv"></div>
+        </div>
+
+        <!-- Headers -->
+        <div class="spanel" id="panel-headers">
+          <div class="kv-grid" id="headers-kv"></div>
+        </div>
+
+        <!-- Body -->
+        <div class="spanel" id="panel-body">
+          <div class="body-types">
+            <span class="body-label">Format:</span>
+            <button class="btype active" data-bt="json">JSON</button>
+            <button class="btype" data-bt="xml">XML</button>
+            <button class="btype" data-bt="form">Form</button>
+            <button class="btype" data-bt="text">Text</button>
+            <button class="btype" data-bt="graphql">GraphQL</button>
+            <span id="body-content-type-hint" style="font-size:10px;color:var(--text3);margin-left:4px"></span>
+            <button class="fmt-btn" id="fmt-json-btn" title="Format JSON">Format JSON</button>
+          </div>
+          <textarea id="body-ta" spellcheck="false"></textarea>
+        </div>
+
+        <!-- Auth -->
+        <div class="spanel" id="panel-auth">
+          <select id="auth-sel">
+            <option value="none">No Auth</option>
+            <option value="bearer">Bearer Token</option>
+            <option value="basic">Basic Auth</option>
+            <option value="apikey">API Key</option>
+            <option value="oauth2">OAuth 2.0 Token</option>
+          </select>
+          <div id="auth-fields"></div>
+        </div>
+
+        <!-- Pre-script -->
+        <div class="spanel" id="panel-prescript">
+          <p class="script-hint">
+            Runs <strong>before</strong> the request is sent. Set or override variables, build dynamic headers, generate timestamps etc.<br>
+            <code>env.get('key')</code> — read variable &nbsp;|&nbsp;
+            <code>env.set('key', val)</code> — write variable &nbsp;|&nbsp;
+            <code>request.url</code> <code>request.method</code> <code>request.headers</code> — read current request
+          </p>
+          <textarea id="prescript-ta" spellcheck="false" placeholder="// Examples:
+// env.set('timestamp', Date.now());
+// env.set('token', btoa(env.get('user') + ':' + env.get('pass')));
+// request.headers['X-Request-ID'] = crypto.randomUUID();"></textarea>
+          <div id="prescript-log" class="script-log" style="display:none"></div>
+        </div>
+
+        <!-- Post-script -->
+        <div class="spanel" id="panel-postscript">
+          <p class="script-hint">
+            Runs <strong>after</strong> the response arrives. Write tests, extract tokens, chain requests.<br>
+            <code>response.status</code> <code>response.body</code> <code>response.json()</code> — read response &nbsp;|&nbsp;
+            <code>env.set('key', val)</code> — save values to env &nbsp;|&nbsp;
+            <code>test('name', () => { ... })</code> — write a test assertion
+          </p>
+          <textarea id="postscript-ta" spellcheck="false" placeholder="// Examples:
+// const data = response.json();
+// env.set('authToken', data.token);        // chain: save token for next request
+// env.set('userId',   data.user.id);
+//
+// test('Status is 200', () => response.status === 200);
+// test('Has token',     () => !!data.token);"></textarea>
+          <div id="postscript-log" class="script-log" style="display:none"></div>
+        </div>
+
+      </div><!-- end req-content -->
+
+      <!-- RESIZE HANDLE -->
+      <div id="resize-handle"></div>
+
+      <!-- RESPONSE PANEL -->
+      <div id="resp-panel">
+        <div id="resp-topbar" style="display:none"></div>
+        <div id="resp-body">
+          <div id="resp-empty">
+            <div class="resp-empty-card">
+              <div class="resp-empty-kicker">Response Workspace</div>
+              <div class="big">Ready when you are</div>
+              <p>Send a request to inspect the body, preview structured data, review headers, or ask AI to transform the result.</p>
+              <p class="resp-empty-shortcut">Ctrl+Enter to send</p>
+            </div>
+          </div>
+          <div id="resp-error"></div>
+          <pre id="resp-out"></pre>
+          <div id="resp-preview"></div>
+          <div id="resp-hdrs"></div>
+          <div id="resp-ai">
+            <div id="ai-quick-actions">
+              <button class="ai-quick" data-ai-prompt="Summarize this response in plain English, including the important fields and any warnings.">Summarize</button>
+              <button class="ai-quick" data-ai-prompt="Extract the important IDs, tokens, and next-step fields from this response as a concise list.">Extract Fields</button>
+              <button class="ai-quick" data-ai-prompt="Transform this response into a clean table-friendly shape and explain the mapping.">Transform Data</button>
+              <button class="ai-quick ai-fix" id="ai-fix-btn">Ask AI To Fix</button>
+            </div>
+            <div id="ai-messages"></div>
+            <div id="ai-input-row">
+              <input id="ai-inp" type="text" placeholder="Ask AI to explain, extract, transform, or validate this response"/>
+              <button id="ai-send">Ask AI</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end req-panel -->
+  </div><!-- end workspace -->
+</div><!-- end app -->
+
+<!-- LOAD BAR -->
+<div id="loadbar"></div>
+<!-- TOAST -->
+<div id="toast"></div>
+<!-- ERROR TOAST (Postman-style bottom error) -->
+<div id="err-toast">
+  <div class="err-toast-title"></div>
+  <div class="err-toast-body"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MODALS
+═══════════════════════════════════════════════════════════ -->
+
+<!-- HISTORY -->
+<div class="overlay" id="history-modal">
+  <div class="modal" style="width:700px">
+    <div class="modal-hd">
+      <h2>⏱ Request <span>History</span></h2>
+      <button class="modal-close" data-close-modal="history-modal">×</button>
+    </div>
+    <div class="hist-list" id="hist-list"></div>
+    <div class="modal-foot">
+      <button class="btn-ghost" onclick="API.clearHistory().then(()=>{document.getElementById('hist-list').innerHTML='<div style=padding:20px;text-align:center;color:var(--text3)>Cleared</div>'})">Clear All</button>
+      <button class="btn-ghost" data-close-modal="history-modal">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ENVIRONMENT -->
+<div class="overlay" id="env-modal">
+  <div class="modal" style="width:680px">
+    <div class="modal-hd">
+      <h2>◎ <span>Environments</span></h2>
+      <button class="modal-close" data-close-modal="env-modal">×</button>
+    </div>
+    <div style="display:flex;gap:16px">
+      <div style="width:180px;flex-shrink:0">
+        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Environments</div>
+        <div id="env-modal-list" style="display:flex;flex-direction:column;gap:4px"></div>
+        <button class="add-kv" style="margin-top:10px;padding:6px 0;width:100%;border:1px dashed var(--border2);border-radius:6px;background:none;color:var(--text3);cursor:pointer" onclick="createNewEnv()">+ New Environment</button>
+      </div>
+      <div style="flex:1;min-width:0" id="env-editor"></div>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT -->
+<div class="overlay" id="import-modal">
+  <div class="modal" style="width:620px">
+    <div class="modal-hd">
+      <h2>↑ Import <span>Collection JSON</span></h2>
+      <button class="modal-close" data-close-modal="import-modal">×</button>
+    </div>
+    <div class="field">
+      <label>Paste Collection JSON</label>
+      <textarea id="import-ta" placeholder='{"info":{"name":"My API",...},"item":[...]}'></textarea>
+    </div>
+    <div class="modal-err" id="import-err"></div>
+    <div class="info-box">Supports collection JSON v2.0 and v2.1, including nested folders, auth, pre-request scripts, and variables.</div>
+    <div class="modal-foot">
+      <button class="btn-ghost" data-close-modal="import-modal">Cancel</button>
+      <button class="btn-primary" id="do-import-btn">Import</button>
+    </div>
+  </div>
+</div>
+
+<!-- COLLECTION STUDIO -->
+<div class="overlay" id="collection-studio-modal">
+  <div class="modal" style="width:680px">
+    <div class="modal-hd">
+      <h2>Collection <span>Studio</span></h2>
+      <button class="modal-close" data-close-modal="collection-studio-modal">×</button>
+    </div>
+    <div class="seg-tabs" id="collection-mode-tabs">
+      <button class="seg-tab active" data-import-mode="blank">Blank</button>
+      <button class="seg-tab" data-import-mode="postman">Collection JSON</button>
+      <button class="seg-tab" data-import-mode="curl">cURL</button>
+    </div>
+
+    <div class="import-pane active" id="import-pane-blank">
+      <div class="field">
+        <label>Collection Name</label>
+        <input id="studio-blank-coll-name" type="text" placeholder="Payments API"/>
+      </div>
+      <div class="field">
+        <label>Description</label>
+        <textarea id="studio-blank-coll-desc" rows="3" placeholder="What this collection is for, auth notes, base URLs, shortcuts..."></textarea>
+      </div>
+      <div class="info-box">Create a blank collection, then add requests manually or import more requests later.</div>
+    </div>
+
+    <div class="import-pane" id="import-pane-postman">
+      <div class="field">
+        <label>JSON File</label>
+        <div class="file-pick-row">
+          <input id="studio-import-file-input" type="file" accept=".json,application/json" hidden/>
+          <button class="btn-ghost" id="studio-import-file-btn" type="button">Choose JSON File</button>
+          <span id="studio-import-file-name">No file selected</span>
+        </div>
+      </div>
+      <div class="field">
+        <label>Paste Collection JSON</label>
+        <textarea id="studio-import-ta" placeholder='{"info":{"name":"My API",...},"item":[...]}'></textarea>
+      </div>
+      <div class="info-box">Supports collection JSON v2.0 and v2.1 with nested folders, auth, scripts, and variables.</div>
+    </div>
+
+    <div class="import-pane" id="import-pane-curl">
+      <div class="field">
+        <label>Collection Name (optional)</label>
+        <input id="studio-curl-coll-name" type="text" placeholder="Token Exchange"/>
+      </div>
+      <div class="field">
+        <label>Paste cURL Command</label>
+        <textarea id="studio-curl-import-ta" placeholder='curl --request POST "https://api.example.com/token" --header "Content-Type: application/json" --data "{\"clientId\":\"abc\"}"'></textarea>
+      </div>
+      <div class="info-box">Converts a cURL command into a stored collection with one request, including method, URL, headers, auth, and body when available.</div>
+    </div>
+
+    <div class="modal-err" id="studio-import-err"></div>
+    <div class="modal-foot">
+      <button class="btn-ghost" data-close-modal="collection-studio-modal">Cancel</button>
+      <button class="btn-primary" id="studio-do-import-btn">Create Collection</button>
+    </div>
+  </div>
+</div>
+
+<!-- VARIABLE EDIT -->
+<div class="overlay" id="var-edit-modal">
+  <div class="modal" style="width:460px">
+    <div class="modal-hd">
+      <h2>Edit <span>Variable</span></h2>
+      <button class="modal-close" data-close-modal="var-edit-modal">×</button>
+    </div>
+    <div class="field">
+      <label>Variable</label>
+      <input id="var-edit-key" type="text" readonly/>
+    </div>
+    <div class="field" id="var-edit-scope-row">
+      <label>Save To</label>
+      <select id="var-edit-scope"></select>
+    </div>
+    <div class="field">
+      <label>Value</label>
+      <textarea id="var-edit-value" rows="4" placeholder="Variable value"></textarea>
+    </div>
+    <div class="info-box" id="var-edit-help"></div>
+    <div class="modal-foot">
+      <button class="btn-ghost" data-close-modal="var-edit-modal">Cancel</button>
+      <button class="btn-primary" id="save-var-btn">Save Variable</button>
+    </div>
+  </div>
+</div>
+
+<!-- SAVE REQUEST -->
+<div class="overlay" id="save-modal">
+  <div class="modal" style="width:480px">
+    <div class="modal-hd">
+      <h2>Save <span>Request</span></h2>
+      <button class="modal-close" data-close-modal="save-modal">×</button>
+    </div>
+    <div class="field"><label>Request Name</label><input id="save-req-name" type="text"/></div>
+    <div class="field"><label>Collection</label><select id="save-coll-sel"></select></div>
+    <div class="modal-err" id="save-err"></div>
+    <div class="modal-foot">
+      <button class="btn-ghost" data-close-modal="save-modal">Cancel</button>
+      <button class="btn-primary" id="do-save-btn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- COLLECTION OVERVIEW -->
+<div class="overlay" id="coll-overview-modal">
+  <div class="modal" style="width:600px">
+    <div class="modal-hd">
+      <h2>📁 <span>Collection</span></h2>
+      <button class="modal-close" data-close-modal="coll-overview-modal">×</button>
+    </div>
+    <div id="coll-stats" class="coll-stats" style="margin-bottom:12px"></div>
+    <div class="field"><label>Description</label>
+      <textarea id="coll-desc-inp" rows="2" placeholder="Describe this collection…"></textarea>
+    </div>
+    <div class="field"><label>Docs / Swagger URL</label>
+      <input id="coll-docs-url-inp" type="text" placeholder="https://api.example.com/openapi.json or docs page URL"/>
+    </div>
+    <div class="field"><label>API Notes For AI</label>
+      <textarea id="coll-docs-notes-inp" rows="4" placeholder="Paste auth rules, tenant format, sample payload rules, response quirks, or endpoint notes..."></textarea>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;margin:-2px 0 14px;color:var(--text2);font-size:11px">
+      <input id="coll-ai-doc-fetch-inp" type="checkbox" style="width:auto"/>
+      Allow AI to fetch this docs URL when helping fix or generate requests
+    </label>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <span style="font-size:11px;font-weight:700;color:var(--text2)">Collection Variables</span>
+      <span style="font-size:11px;color:var(--text3)">(override env vars for this collection)</span>
+      <button class="add-kv" id="add-colvar-btn" style="margin-left:auto">+ Add</button>
+    </div>
+    <div id="coll-vars-list"></div>
+    <div class="info-box" style="margin-bottom:14px">
+      Use <code>{{varName}}</code> in any request URL, header, or body in this collection. Collection variables override environment variables.
+    </div>
+    <div class="modal-foot">
+      <button class="btn-danger" id="del-coll-overview-btn">Delete Collection</button>
+      <button class="btn-ghost" id="run-coll-btn">▷ Run Collection</button>
+      <button class="btn-ghost" data-close-modal="coll-overview-modal">Cancel</button>
+      <button class="btn-primary" id="save-coll-overview-btn">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- THEME -->
+<div class="overlay" id="theme-modal">
+  <div class="modal" style="width:640px">
+    <div class="modal-hd">
+      <h2>◑ <span>Theme &amp; Appearance</span></h2>
+      <button class="modal-close" data-close-modal="theme-modal">×</button>
+    </div>
+    <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.6px">Theme Mood</div>
+    <div class="theme-grid" id="theme-grid"></div>
+    <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.6px">Wallpaper</div>
+    <div class="bg-grid" id="bg-grid"></div>
+    <div id="custom-bg-row" style="display:none" class="field">
+      <label>Image URL</label>
+      <input type="text" id="custom-bg-inp" placeholder="https://example.com/bg.jpg"/>
+    </div>
+    <div id="custom-bg-controls" style="display:none">
+      <div class="field">
+        <label>Image Fit</label>
+        <select id="bg-fit-sel">
+          <option value="cover">Cover</option>
+          <option value="contain">Contain</option>
+          <option value="100% auto">Width First</option>
+          <option value="auto 100%">Height First</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Image Focus X <span id="bg-pos-x-val">50%</span></label>
+        <input type="range" id="bg-pos-x-inp" min="0" max="100" step="1" value="50"/>
+      </div>
+      <div class="field">
+        <label>Image Focus Y <span id="bg-pos-y-val">50%</span></label>
+        <input type="range" id="bg-pos-y-inp" min="0" max="100" step="1" value="50"/>
+      </div>
+    </div>
+    <div class="field">
+      <label>Background Opacity — <span id="bg-opacity-val">18%</span></label>
+      <input type="range" id="bg-opacity-inp" min="0" max="100" step="1" value="18"/>
+    </div>
+    <div class="theme-effect-grid">
+      <div class="field">
+        <label>Wallpaper Blur - <span id="bg-blur-val">0px</span></label>
+        <input type="range" id="bg-blur-inp" min="0" max="32" step="1" value="0"/>
+      </div>
+      <div class="field">
+        <label>Bokeh Glow - <span id="bg-bokeh-val">16%</span></label>
+        <input type="range" id="bg-bokeh-inp" min="0" max="100" step="1" value="16"/>
+      </div>
+    </div>
+    <div class="field">
+      <label>Font Size - <span id="font-size-val">13px</span></label>
+      <input type="range" id="font-size-inp" min="11" max="18" step="1" value="13"/>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-ghost" data-close-modal="theme-modal">Cancel</button>
+      <button class="btn-primary" id="save-theme-btn">Save Theme</button>
+    </div>
+  </div>
+</div>
+
+<!-- AI CONFIG -->
+<div class="overlay" id="ai-config-modal">
+  <div class="modal" style="width:600px">
+    <div class="modal-hd">
+      <h2>✦ <span>AI Configuration</span></h2>
+      <button class="modal-close" data-close-modal="ai-config-modal">×</button>
+    </div>
+    <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.6px">Choose Provider</div>
+    <div class="ai-provider-grid" id="ai-provider-grid"></div>
+    <div id="ai-fields"></div>
+    <div class="modal-foot">
+      <button class="btn-ghost" data-close-modal="ai-config-modal">Cancel</button>
+      <button class="btn-primary" id="save-ai-btn">Save &amp; Connect</button>
+    </div>
+  </div>
+</div>
+
+<!-- GENERATE (AI) -->
+<div class="overlay" id="generate-modal">
+  <div class="modal" style="width:620px">
+    <div class="modal-hd">
+      <h2>✦ <span>Make with AI</span></h2>
+      <button class="modal-close" data-close-modal="generate-modal">×</button>
+    </div>
+    <div class="field">
+      <label>What Should AI Build?</label>
+      <textarea id="gen-desc" rows="3" placeholder="e.g. Get all users from GitHub API, POST a new Stripe payment intent, Fetch weather for London from OpenWeather…"></textarea>
+    </div>
+    <div class="field">
+      <label>Collection Context</label>
+      <select id="gen-coll-sel"></select>
+    </div>
+    <div class="field">
+      <label>Saved AI Sources</label>
+      <div id="gen-source-list" class="source-choice-list"></div>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;margin:-2px 0 6px;color:var(--text2);font-size:11px">
+      <input id="gen-fetch-docs" type="checkbox" style="width:auto"/>
+      Allow AI to fetch selected link sources while planning the request
+    </label>
+    <div class="info-box">AI can use saved collection sources to infer auth, payload shape, scripts, and the best request structure before it fills the tab.</div>
+    <div class="modal-err" id="gen-err"></div>
+    <div class="modal-foot">
+      <button class="btn-ghost" data-close-modal="generate-modal">Cancel</button>
+      <button class="btn-primary" id="do-generate-btn">✦ Make Request</button>
+    </div>
+  </div>
+</div>
+
+<!-- SIGN IN -->
+<div class="overlay" id="signin-modal">
+  <div class="modal" style="width:440px">
+    <div class="modal-hd">
+      <h2>Account <span>Access</span></h2>
+      <button class="modal-close" data-close-modal="signin-modal">×</button>
+    </div>
+
+    <div id="signin-account-view" style="display:none">
+      <div class="info-box" id="signin-account-summary"></div>
+      <div class="info-box" id="signin-account-admin-note" style="display:none;margin-top:10px"></div>
+      <div class="modal-foot">
+        <button class="btn-danger" id="do-signout-btn">Sign Out</button>
+        <button class="btn-ghost" data-close-modal="signin-modal">Close</button>
+      </div>
+    </div>
+
+    <div id="signin-cloud-view" style="display:none">
+      <div id="signin-mode-tabs" class="seg-tabs" style="margin-bottom:14px">
+        <button class="seg-tab active" data-auth-mode="signin" type="button">Sign In</button>
+        <button class="seg-tab" data-auth-mode="signup" type="button">Create Account</button>
+      </div>
+      <div class="field" id="signin-name-row">
+        <label>Display Name</label>
+        <input id="signin-name" type="text" placeholder="Shown inside PostFreely"/>
+      </div>
+      <div class="field"><label>Email</label><input id="signin-email" type="email" placeholder="you@example.com"/></div>
+      <div class="field"><label>Password</label><input id="signin-password" type="password" placeholder="Your password"/></div>
+      <div class="info-box" id="signin-cloud-note">Use your PostFreely account to sync collections, environments, history, and runner data.</div>
+      <div class="modal-err" id="signin-err"></div>
+      <div class="modal-foot">
+        <button class="btn-ghost" data-close-modal="signin-modal">Cancel</button>
+        <button class="btn-ghost" id="do-google-signin-btn" type="button">Google</button>
+        <button class="btn-primary" id="do-signin-btn" type="button">Sign In</button>
+      </div>
+    </div>
+
+    <div id="signin-local-view" style="display:none">
+      <div class="info-box">Cloud auth is not configured yet, so PostFreely is running in local mode.</div>
+      <div class="field"><label>Display Name</label><input id="signin-local-name" type="text" placeholder="Your name"/></div>
+      <div class="field"><label>Email (optional)</label><input id="signin-local-email" type="email" placeholder="you@example.com"/></div>
+      <div class="modal-err" id="signin-local-err"></div>
+      <div class="modal-foot">
+        <button class="btn-ghost" data-close-modal="signin-modal">Cancel</button>
+        <button class="btn-primary" id="do-local-signin-btn" type="button">Continue</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/assets/js/core/api.js"></script>
+<script src="/assets/js/core/state.js"></script>
+<script src="/assets/js/modules/ui.js"></script>
+<script src="/assets/js/modules/modals.js"></script>
+<script src="/assets/js/app.js"></script>
+</body>
+</html>

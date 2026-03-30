@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+data/
+config/config.local.py
+.DS_Store
+.vscode/
+.idea/
+.env
+.tools/
+*.zip
+*.exe
+*.winmd
