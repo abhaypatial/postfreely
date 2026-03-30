@@ -67,3 +67,94 @@ comment on table public.pf_user_settings is 'Per-user UI settings and active env
 comment on table public.pf_collections is 'Saved collections with nested requests';
 comment on table public.pf_environments is 'Saved environments per workspace owner';
 comment on table public.pf_history is 'Recent request history per workspace owner';
+
+create or replace function public.pf_is_admin(user_id uuid)
+returns boolean
+language sql
+stable
+as $$
+  select exists(
+    select 1
+    from public.pf_profiles p
+    where p.id = user_id
+      and p.role = 'admin'
+  );
+$$;
+
+create or replace function public.pf_apply_profile_defaults()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  new.email := lower(trim(new.email));
+  new.updated_at := now();
+  new.username := nullif(trim(coalesce(new.username, '')), '');
+  new.provider := coalesce(nullif(trim(coalesce(new.provider, '')), ''), 'email');
+  if new.email = 'abhay.patial13@gmail.com' then
+    new.role := 'admin';
+  else
+    new.role := 'user';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists pf_profiles_defaults on public.pf_profiles;
+create trigger pf_profiles_defaults
+before insert or update on public.pf_profiles
+for each row execute function public.pf_apply_profile_defaults();
+
+alter table public.pf_profiles enable row level security;
+alter table public.pf_user_settings enable row level security;
+alter table public.pf_collections enable row level security;
+alter table public.pf_environments enable row level security;
+alter table public.pf_history enable row level security;
+
+drop policy if exists "pf_profiles_select_self_or_admin" on public.pf_profiles;
+create policy "pf_profiles_select_self_or_admin"
+on public.pf_profiles
+for select
+using (id = auth.uid() or public.pf_is_admin(auth.uid()));
+
+drop policy if exists "pf_profiles_insert_self" on public.pf_profiles;
+create policy "pf_profiles_insert_self"
+on public.pf_profiles
+for insert
+with check (id = auth.uid());
+
+drop policy if exists "pf_profiles_update_self_or_admin" on public.pf_profiles;
+create policy "pf_profiles_update_self_or_admin"
+on public.pf_profiles
+for update
+using (id = auth.uid() or public.pf_is_admin(auth.uid()))
+with check (id = auth.uid() or public.pf_is_admin(auth.uid()));
+
+drop policy if exists "pf_user_settings_rw_owner_or_admin" on public.pf_user_settings;
+create policy "pf_user_settings_rw_owner_or_admin"
+on public.pf_user_settings
+for all
+using (owner_id = auth.uid() or public.pf_is_admin(auth.uid()))
+with check (owner_id = auth.uid() or public.pf_is_admin(auth.uid()));
+
+drop policy if exists "pf_collections_rw_owner_or_admin" on public.pf_collections;
+create policy "pf_collections_rw_owner_or_admin"
+on public.pf_collections
+for all
+using (owner_id = auth.uid() or public.pf_is_admin(auth.uid()))
+with check (owner_id = auth.uid() or public.pf_is_admin(auth.uid()));
+
+drop policy if exists "pf_environments_rw_owner_or_admin" on public.pf_environments;
+create policy "pf_environments_rw_owner_or_admin"
+on public.pf_environments
+for all
+using (owner_id = auth.uid() or public.pf_is_admin(auth.uid()))
+with check (owner_id = auth.uid() or public.pf_is_admin(auth.uid()));
+
+drop policy if exists "pf_history_rw_owner_or_admin" on public.pf_history;
+create policy "pf_history_rw_owner_or_admin"
+on public.pf_history
+for all
+using (owner_id = auth.uid() or public.pf_is_admin(auth.uid()))
+with check (owner_id = auth.uid() or public.pf_is_admin(auth.uid()));

@@ -1,6 +1,7 @@
 /* PostFreely - API client */
 const POSTFREELY_SESSION_KEY = 'postfreely.session.v1';
 const POSTFREELY_VIEW_OWNER_KEY = 'postfreely.view-owner.v1';
+const POSTFREELY_CONFIG = window.POSTFREELY_CONFIG || {};
 const BROWSER_SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 const FORBIDDEN_BROWSER_HEADERS = new Set([
   'accept-charset', 'accept-encoding', 'access-control-request-headers',
@@ -45,6 +46,10 @@ function setViewOwnerId(ownerId) {
   if (normalized) localStorage.setItem(POSTFREELY_VIEW_OWNER_KEY, normalized);
   else localStorage.removeItem(POSTFREELY_VIEW_OWNER_KEY);
   window.dispatchEvent(new CustomEvent('postfreely-view-owner-changed', { detail: { ownerId: normalized } }));
+}
+
+function isSupabaseCloudMode() {
+  return !!window.PostFreelyCloudAPI?.isConfigured?.();
 }
 
 function withQuery(url, query = {}) {
@@ -243,6 +248,9 @@ function formatBrowserResult(rawBody, statusCode, statusText, headers, elapsedMs
 }
 
 async function refreshSessionInternal() {
+  if (isSupabaseCloudMode()) {
+    return window.PostFreelyCloudAPI.refreshSession();
+  }
   const session = getSession();
   if (!session?.refresh_token) return null;
   const response = await fetch('/api/auth/refresh', {
@@ -313,12 +321,23 @@ function shouldUseBrowser(payload = {}) {
 
 async function saveHistoryEntry(entry) {
   try {
-    await request('POST', '/api/history', entry);
+    if (isSupabaseCloudMode()) await window.PostFreelyCloudAPI.addHistory(entry);
+    else await request('POST', '/api/history', entry);
   } catch (_) {
   }
 }
 
 async function sendProxyRequest(payload) {
+  if (isSupabaseCloudMode()) {
+    const result = await window.PostFreelyCloudAPI.sendProxyRequest(payload);
+    if (result && typeof result === 'object') {
+      result.execution_mode = 'proxy';
+      if (!result.browser_compatibility) {
+        result.browser_compatibility = compatibilityFromPayload(payload);
+      }
+    }
+    return result;
+  }
   const result = await request('POST', '/api/proxy', payload);
   if (result && typeof result === 'object') {
     result.execution_mode = 'proxy';
@@ -434,58 +453,58 @@ const API = {
   executeExternalRequest,
   testBrowserCompatibility,
 
-  getPublicConfig:       ()      => request('GET', '/api/public/config', undefined, { skipAuth: true, scoped: false }),
+  getPublicConfig:       ()      => isSupabaseCloudMode() ? Promise.resolve(window.PostFreelyCloudAPI.publicConfig()) : request('GET', '/api/public/config', undefined, { skipAuth: true, scoped: false }),
 
   // Collections
-  getCollections:        ()      => request('GET', '/api/collections'),
-  createCollection:      (d)     => request('POST', '/api/collections', d),
-  updateCollection:      (id,d)  => request('PUT', `/api/collections/${id}`, d),
-  deleteCollection:      (id)    => request('DELETE', `/api/collections/${id}`),
-  addRequest:            (cid,d) => request('POST', `/api/collections/${cid}/requests`, d),
-  updateRequest:         (cid,rid,d) => request('PUT', `/api/collections/${cid}/requests/${rid}`, d),
-  deleteRequest:         (cid,rid)   => request('DELETE', `/api/collections/${cid}/requests/${rid}`),
-  importCollection:      (d)     => request('POST', '/api/collections/import', d),
-  updateCollVars:        (id,d)  => request('PUT', `/api/collections/${id}/variables`, d),
+  getCollections:        ()      => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.getCollections() : request('GET', '/api/collections'),
+  createCollection:      (d)     => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.createCollection(d || {}) : request('POST', '/api/collections', d),
+  updateCollection:      (id,d)  => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.updateCollection(id, d || {}) : request('PUT', `/api/collections/${id}`, d),
+  deleteCollection:      (id)    => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.deleteCollection(id) : request('DELETE', `/api/collections/${id}`),
+  addRequest:            (cid,d) => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.addRequest(cid, d || {}) : request('POST', `/api/collections/${cid}/requests`, d),
+  updateRequest:         (cid,rid,d) => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.updateRequest(cid, rid, d || {}) : request('PUT', `/api/collections/${cid}/requests/${rid}`, d),
+  deleteRequest:         (cid,rid)   => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.deleteRequest(cid, rid) : request('DELETE', `/api/collections/${cid}/requests/${rid}`),
+  importCollection:      (d)     => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.importCollection(d || {}) : request('POST', '/api/collections/import', d),
+  updateCollVars:        (id,d)  => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.updateCollVars(id, d || {}) : request('PUT', `/api/collections/${id}/variables`, d),
 
   // Environments
-  getEnvironments:       ()      => request('GET', '/api/environments'),
-  createEnvironment:     (d)     => request('POST', '/api/environments', d),
-  updateEnvironment:     (id,d)  => request('PUT', `/api/environments/${id}`, d),
-  deleteEnvironment:     (id)    => request('DELETE', `/api/environments/${id}`),
-  activateEnvironment:   (id)    => request('POST', `/api/environments/${id}/activate`, {}),
+  getEnvironments:       ()      => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.getEnvironments() : request('GET', '/api/environments'),
+  createEnvironment:     (d)     => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.createEnvironment(d || {}) : request('POST', '/api/environments', d),
+  updateEnvironment:     (id,d)  => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.updateEnvironment(id, d || {}) : request('PUT', `/api/environments/${id}`, d),
+  deleteEnvironment:     (id)    => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.deleteEnvironment(id) : request('DELETE', `/api/environments/${id}`),
+  activateEnvironment:   (id)    => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.activateEnvironment(id) : request('POST', `/api/environments/${id}/activate`, {}),
 
   // Proxy / execution
   sendProxyRequest,
-  sendRequest:           (d)     => request('POST', '/api/proxy', d),
-  addHistory:            (d)     => request('POST', '/api/history', d),
+  sendRequest:           (d)     => sendProxyRequest(d),
+  addHistory:            (d)     => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.addHistory(d || {}) : request('POST', '/api/history', d),
 
   // Legacy backend runner endpoints
-  runCollection:         (d)     => request('POST', '/api/runner', d),
-  getCollectionRun:      (id,since=0) => request('GET', `/api/runner/${id}`, undefined, { query: { since } }),
-  stopCollectionRun:     (d)     => request('POST', '/api/runner/stop', d),
+  runCollection:         (d)     => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.runCollection(d || {}) : request('POST', '/api/runner', d),
+  getCollectionRun:      (id,since=0) => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.getCollectionRun(id, since) : request('GET', `/api/runner/${id}`, undefined, { query: { since } }),
+  stopCollectionRun:     (d)     => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.stopCollectionRun(d || {}) : request('POST', '/api/runner/stop', d),
 
   // History
-  getHistory:            ()      => request('GET', '/api/history'),
-  clearHistory:          ()      => request('DELETE', '/api/history'),
+  getHistory:            ()      => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.getHistory() : request('GET', '/api/history'),
+  clearHistory:          ()      => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.clearHistory() : request('DELETE', '/api/history'),
 
   // Settings
-  getSettings:           ()      => request('GET', '/api/settings', undefined, { scoped: false }),
-  updateSettings:        (d)     => request('PUT', '/api/settings', d, { scoped: false }),
+  getSettings:           ()      => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.getSettings() : request('GET', '/api/settings', undefined, { scoped: false }),
+  updateSettings:        (d)     => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.updateSettings(d || {}) : request('PUT', '/api/settings', d, { scoped: false }),
 
   // Auth
-  login:                 (d)     => request('POST', '/api/auth/login', d, { skipAuth: true, scoped: false }),
-  signup:                (d)     => request('POST', '/api/auth/signup', d, { skipAuth: true, scoped: false }),
-  refresh:               (d)     => request('POST', '/api/auth/refresh', d, { skipAuth: true, scoped: false }),
-  logout:                ()      => request('POST', '/api/auth/logout', {}, { scoped: false }),
-  me:                    ()      => request('GET', '/api/auth/me', undefined, { scoped: false }),
-  getGoogleAuthUrl:      (redirect_to='') => request('GET', '/api/auth/google/url', undefined, { skipAuth: true, scoped: false, query: { redirect_to } }),
+  login:                 (d)     => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.login(d || {}) : request('POST', '/api/auth/login', d, { skipAuth: true, scoped: false }),
+  signup:                (d)     => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.signup(d || {}) : request('POST', '/api/auth/signup', d, { skipAuth: true, scoped: false }),
+  refresh:               (d)     => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.refresh(d || {}) : request('POST', '/api/auth/refresh', d, { skipAuth: true, scoped: false }),
+  logout:                ()      => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.logout() : request('POST', '/api/auth/logout', {}, { scoped: false }),
+  me:                    ()      => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.me() : request('GET', '/api/auth/me', undefined, { scoped: false }),
+  getGoogleAuthUrl:      (redirect_to='') => isSupabaseCloudMode() ? Promise.resolve(window.PostFreelyCloudAPI.getGoogleAuthUrl(redirect_to)) : request('GET', '/api/auth/google/url', undefined, { skipAuth: true, scoped: false, query: { redirect_to } }),
 
   // Admin
-  getAdminUsers:         ()      => request('GET', '/api/admin/users', undefined, { scoped: false }),
+  getAdminUsers:         ()      => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.getAdminUsers() : request('GET', '/api/admin/users', undefined, { scoped: false }),
 
   // AI
-  aiChat:                (d)     => request('POST', '/api/ai/chat', d),
-  aiAnalyze:             (d)     => request('POST', '/api/ai/analyze', d),
-  aiGenerate:            (d)     => request('POST', '/api/ai/generate', d),
-  aiFix:                 (d)     => request('POST', '/api/ai/fix', d),
+  aiChat:                (d)     => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.aiChat(d || {}) : request('POST', '/api/ai/chat', d),
+  aiAnalyze:             (d)     => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.aiAnalyze(d || {}) : request('POST', '/api/ai/analyze', d),
+  aiGenerate:            (d)     => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.aiGenerate(d || {}) : request('POST', '/api/ai/generate', d),
+  aiFix:                 (d)     => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.aiFix(d || {}) : request('POST', '/api/ai/fix', d),
 };

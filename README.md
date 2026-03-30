@@ -75,6 +75,8 @@ Recommended free-first architecture:
 - Browser-first runner execution from the end user's machine
 - Optional proxy/server mode only where direct browser access is blocked
 
+Cloudflare Pages build details live in [docs/cloudflare-pages.md](docs/cloudflare-pages.md).
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
