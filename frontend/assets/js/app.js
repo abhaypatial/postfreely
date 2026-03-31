@@ -241,6 +241,11 @@ function syncTabRequestMetadata(tab) {
 }
 
 async function loadActorSettings() {
+  if (State.publicConfig?.auth_required && !State.currentUser) {
+    State.settings = {};
+    applySettings({});
+    return false;
+  }
   const settings = await API.getSettings();
   if (settings?.error) {
     State.settings = {};
