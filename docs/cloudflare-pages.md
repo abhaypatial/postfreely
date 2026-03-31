@@ -24,6 +24,7 @@ POSTFREELY_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 POSTFREELY_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
 POSTFREELY_PUBLIC_URL=https://YOUR_PROJECT.pages.dev
 POSTFREELY_ENABLE_GOOGLE_AUTH=true
+POSTFREELY_ENABLE_PASSWORD_AUTH=false
 ```
 
 ## Important
@@ -44,6 +45,7 @@ Then in Supabase Auth:
 - set Site URL to your Pages URL
 - add redirect URL `https://YOUR_PROJECT.pages.dev/auth/callback.html`
 - enable Google provider
+- if you are staying Google-only for now, disable Email in the Supabase Auth providers list
 
 ## Result
 

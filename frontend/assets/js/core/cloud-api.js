@@ -25,6 +25,10 @@ window.PostFreelyCloudAPI = (() => {
     return config().enableGoogleAuth !== false;
   }
 
+  function passwordAuthEnabled() {
+    return config().enablePasswordAuth !== false;
+  }
+
   function normalizedEmail(value = '') {
     return String(value || '').trim().toLowerCase();
   }
@@ -40,8 +44,8 @@ window.PostFreelyCloudAPI = (() => {
       cloud_enabled: true,
       auth_required: true,
       google_auth_enabled: googleAuthEnabled(),
-      password_auth_enabled: true,
-      signup_enabled: true,
+      password_auth_enabled: passwordAuthEnabled(),
+      signup_enabled: passwordAuthEnabled(),
       public_url: String(config().publicUrl || window.location.origin || ''),
       admin_emails_configured: true,
       proxy_enabled: false,

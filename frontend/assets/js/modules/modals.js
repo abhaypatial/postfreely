@@ -788,6 +788,9 @@ function shouldOfferVerificationHelp(message) {
 }
 
 function authModeNote() {
+  if (!State.publicConfig.password_auth_enabled) {
+    return 'Google sign-in is enabled for now. Email/password signup is hidden until custom email delivery is configured.';
+  }
   if (_authMode === 'signup') {
     return 'Create an account to sync collections, environments, history, and runner results. After signup, PostFreely will email you a confirmation link.';
   }
@@ -797,13 +800,22 @@ function authModeNote() {
 }
 
 function setAuthMode(mode = 'signin') {
-  _authMode = mode === 'signup' ? 'signup' : 'signin';
+  const passwordEnabled = !!State.publicConfig?.password_auth_enabled;
+  _authMode = passwordEnabled && mode === 'signup' ? 'signup' : 'signin';
+  const tabs = document.getElementById('signin-mode-tabs');
+  if (tabs) tabs.style.display = passwordEnabled && State.publicConfig?.signup_enabled ? '' : 'none';
   document.querySelectorAll('#signin-mode-tabs .seg-tab').forEach(tab =>
     tab.classList.toggle('active', tab.dataset.authMode === _authMode));
-  document.getElementById('signin-name-row').style.display = _authMode === 'signup' ? '' : 'none';
-  document.getElementById('signin-confirm-row').style.display = _authMode === 'signup' ? '' : 'none';
+  document.getElementById('signin-name-row').style.display = passwordEnabled && _authMode === 'signup' ? '' : 'none';
+  document.getElementById('signin-email').closest('.field').style.display = passwordEnabled ? '' : 'none';
+  document.getElementById('signin-password').closest('.field').style.display = passwordEnabled ? '' : 'none';
+  document.getElementById('signin-confirm-row').style.display = passwordEnabled && _authMode === 'signup' ? '' : 'none';
   document.getElementById('signin-password').setAttribute('autocomplete', _authMode === 'signup' ? 'new-password' : 'current-password');
-  document.getElementById('do-signin-btn').textContent = _authMode === 'signup' ? 'Create Account' : 'Sign In';
+  document.getElementById('do-signin-btn').textContent = passwordEnabled
+    ? (_authMode === 'signup' ? 'Create Account' : 'Sign In')
+    : 'Continue with Google';
+  document.getElementById('do-signin-btn').style.display = passwordEnabled ? '' : 'none';
+  document.getElementById('do-google-signin-btn').textContent = passwordEnabled ? 'Google' : 'Continue with Google';
   document.getElementById('signin-cloud-note').textContent = authModeNote();
   if (_authMode !== 'signup') {
     document.getElementById('signin-password-confirm').value = '';
@@ -876,6 +888,14 @@ async function doSignIn() {
   resetAuthAssistance();
 
   if (State.publicConfig?.auth_required) {
+    if (!State.publicConfig.password_auth_enabled) {
+      if (State.publicConfig.google_auth_enabled) {
+        await startGoogleSignIn();
+        return;
+      }
+      errEl.textContent = 'Password sign-in is disabled and Google sign-in is not available.';
+      return;
+    }
     if (!email || !password) {
       errEl.textContent = 'Enter your email and password.';
       return;
