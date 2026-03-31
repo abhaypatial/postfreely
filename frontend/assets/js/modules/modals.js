@@ -742,13 +742,73 @@ async function saveAIConfig() {
 
 // ── SIGN IN ───────────────────────────────────────────────────
 let _authMode = 'signin';
+let _pendingVerificationEmail = '';
+
+function normalizedAuthEmail(value = '') {
+  return String(value || '').trim().toLowerCase();
+}
+
+function resetAuthAssistance() {
+  _pendingVerificationEmail = '';
+  const resendBtn = document.getElementById('signin-resend-btn');
+  if (resendBtn) resendBtn.style.display = 'none';
+}
+
+function setPendingVerificationEmail(email = '') {
+  _pendingVerificationEmail = normalizedAuthEmail(email);
+  const resendBtn = document.getElementById('signin-resend-btn');
+  if (resendBtn) resendBtn.style.display = _pendingVerificationEmail ? '' : 'none';
+}
+
+function authFriendlyError(message, mode = 'signin') {
+  const raw = String(message || '').trim();
+  if (!raw) return mode === 'signup' ? 'Could not create the account right now.' : 'Could not sign in right now.';
+  const lower = raw.toLowerCase();
+  if (lower.includes('invalid login credentials')) {
+    return 'Email or password was not accepted. If you just created this account, confirm the email first. If this account started with Google, use Google sign-in.';
+  }
+  if (lower.includes('email not confirmed') || lower.includes('email_not_confirmed') || lower.includes('confirm your email')) {
+    return 'Your account is waiting for email confirmation. Open the verification email, then try again.';
+  }
+  if (lower.includes('already registered') || lower.includes('already been registered')) {
+    return 'That email is already registered. Sign in instead, or use Google if you originally joined with Google.';
+  }
+  if (lower.includes('email address not authorized')) {
+    return 'Supabase is still using the default test email sender. Add the email to your Supabase team or set up custom SMTP before using email signup in production.';
+  }
+  return raw;
+}
+
+function shouldOfferVerificationHelp(message) {
+  const lower = String(message || '').trim().toLowerCase();
+  return lower.includes('invalid login credentials')
+    || lower.includes('email not confirmed')
+    || lower.includes('email_not_confirmed')
+    || lower.includes('confirm your email');
+}
+
+function authModeNote() {
+  if (_authMode === 'signup') {
+    return 'Create an account to sync collections, environments, history, and runner results. After signup, PostFreely will email you a confirmation link.';
+  }
+  return State.publicConfig.google_auth_enabled
+    ? 'Use email/password or Google to sync collections, environments, history, and runner results.'
+    : 'Use your PostFreely account to sync collections, environments, history, and runner results.';
+}
 
 function setAuthMode(mode = 'signin') {
   _authMode = mode === 'signup' ? 'signup' : 'signin';
   document.querySelectorAll('#signin-mode-tabs .seg-tab').forEach(tab =>
     tab.classList.toggle('active', tab.dataset.authMode === _authMode));
   document.getElementById('signin-name-row').style.display = _authMode === 'signup' ? '' : 'none';
+  document.getElementById('signin-confirm-row').style.display = _authMode === 'signup' ? '' : 'none';
+  document.getElementById('signin-password').setAttribute('autocomplete', _authMode === 'signup' ? 'new-password' : 'current-password');
   document.getElementById('do-signin-btn').textContent = _authMode === 'signup' ? 'Create Account' : 'Sign In';
+  document.getElementById('signin-cloud-note').textContent = authModeNote();
+  if (_authMode !== 'signup') {
+    document.getElementById('signin-password-confirm').value = '';
+  }
+  resetAuthAssistance();
 }
 
 function renderAuthModalState() {
@@ -775,9 +835,7 @@ function renderAuthModalState() {
   }
 
   if (isCloud) {
-    document.getElementById('signin-cloud-note').textContent = State.publicConfig.google_auth_enabled
-      ? 'Use email/password or Google to sync collections, environments, history, and runner results.'
-      : 'Use your PostFreely account to sync collections, environments, history, and runner results.';
+    document.getElementById('signin-cloud-note').textContent = authModeNote();
     document.getElementById('do-google-signin-btn').style.display = State.publicConfig.google_auth_enabled ? '' : 'none';
     setAuthMode(_authMode);
   }
@@ -786,6 +844,7 @@ function renderAuthModalState() {
 async function openSignIn() {
   document.getElementById('signin-err').textContent = '';
   document.getElementById('signin-local-err').textContent = '';
+  resetAuthAssistance();
   renderAuthModalState();
   openModal('signin-modal');
 }
@@ -808,26 +867,42 @@ async function finishAuthenticatedSession(result, successMessage) {
 }
 
 async function doSignIn() {
-  const email = document.getElementById('signin-email').value.trim();
+  const email = normalizedAuthEmail(document.getElementById('signin-email').value);
   const password = document.getElementById('signin-password').value;
+  const passwordConfirm = document.getElementById('signin-password-confirm').value;
   const username = document.getElementById('signin-name').value.trim();
   const errEl = document.getElementById('signin-err');
   errEl.textContent = '';
+  resetAuthAssistance();
 
   if (State.publicConfig?.auth_required) {
     if (!email || !password) {
       errEl.textContent = 'Enter your email and password.';
       return;
     }
+    if (_authMode === 'signup') {
+      if (password.length < 8) {
+        errEl.textContent = 'Use at least 8 characters for the password.';
+        return;
+      }
+      if (password !== passwordConfirm) {
+        errEl.textContent = 'The password confirmation does not match.';
+        return;
+      }
+    }
     const result = _authMode === 'signup'
       ? await API.signup({ email, password, username })
       : await API.login({ email, password });
     if (result?.error) {
-      errEl.textContent = result.error;
+      errEl.textContent = authFriendlyError(result.error, _authMode);
+      if (_authMode === 'signin' && shouldOfferVerificationHelp(result.error)) {
+        setPendingVerificationEmail(email);
+      }
       return;
     }
     if (!result?.session?.access_token) {
-      errEl.textContent = result?.message || 'Account created. Finish the email confirmation step, then sign in.';
+      errEl.textContent = result?.message || 'Check your inbox and confirm your email before signing in.';
+      setPendingVerificationEmail(email);
       return;
     }
     try {
@@ -879,6 +954,23 @@ async function startGoogleSignIn() {
   window.location.href = result.url;
 }
 
+async function resendVerificationEmail() {
+  const email = _pendingVerificationEmail || normalizedAuthEmail(document.getElementById('signin-email').value);
+  const errEl = document.getElementById('signin-err');
+  errEl.textContent = '';
+  if (!email) {
+    errEl.textContent = 'Enter the email address you used to create the account first.';
+    return;
+  }
+  const result = await API.resendSignupEmail({ email });
+  if (result?.error) {
+    errEl.textContent = authFriendlyError(result.error, 'signup');
+    return;
+  }
+  setPendingVerificationEmail(email);
+  errEl.textContent = result?.message || 'Verification email sent.';
+}
+
 async function doSignOut() {
   try {
     await API.logout();
@@ -896,6 +988,15 @@ async function doSignOut() {
   if (State.publicConfig?.auth_required) {
     openSignIn();
   }
+}
+
+function togglePasswordVisibility(targetId) {
+  const input = document.getElementById(targetId);
+  const toggle = document.querySelector(`[data-password-toggle="${targetId}"]`);
+  if (!input || !toggle) return;
+  const reveal = input.type === 'password';
+  input.type = reveal ? 'text' : 'password';
+  toggle.textContent = reveal ? 'Hide' : 'Show';
 }
 
 function updateUserUI(user) {

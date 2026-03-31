@@ -25,6 +25,16 @@ window.PostFreelyCloudAPI = (() => {
     return config().enableGoogleAuth !== false;
   }
 
+  function normalizedEmail(value = '') {
+    return String(value || '').trim().toLowerCase();
+  }
+
+  function authRedirectTo(path = '/auth/callback.html') {
+    const base = String(config().publicUrl || window.location.origin || '').replace(/\/+$/, '');
+    const suffix = String(path || '/auth/callback.html');
+    return `${base}${suffix.startsWith('/') ? suffix : `/${suffix}`}`;
+  }
+
   function publicConfig() {
     return {
       cloud_enabled: true,
@@ -521,10 +531,11 @@ window.PostFreelyCloudAPI = (() => {
   }
 
   async function login(payload = {}) {
+    const email = normalizedEmail(payload.email);
     const { response, data } = await fetchJson(`${supabaseUrl()}/auth/v1/token?grant_type=password`, {
       method: 'POST',
       headers: headers({ auth: false }),
-      body: JSON.stringify({ email: payload.email, password: payload.password }),
+      body: JSON.stringify({ email, password: payload.password }),
     }, { auth: false });
     if (!response.ok || data?.error || !data?.access_token) return data;
     const profile = await ensureProfile(data.user || {});
@@ -533,7 +544,11 @@ window.PostFreelyCloudAPI = (() => {
   }
 
   async function signup(payload = {}) {
-    const body = { email: payload.email, password: payload.password };
+    const body = {
+      email: normalizedEmail(payload.email),
+      password: payload.password,
+      email_redirect_to: authRedirectTo('/auth/callback.html'),
+    };
     const username = String(payload.username || '').trim();
     if (username) body.data = { username };
     const { response, data } = await fetchJson(`${supabaseUrl()}/auth/v1/signup`, {
@@ -547,12 +562,33 @@ window.PostFreelyCloudAPI = (() => {
         session: null,
         user: null,
         needs_email_confirmation: true,
-        message: 'Account created. Finish the email confirmation step, then sign in.',
+        message: 'Check your inbox and confirm your email to finish creating the account.',
       };
     }
     const profile = await ensureProfile(data.user || {});
     await ensureWorkspace(profile?.id || data.user?.id);
     return { session: sessionPayloadFromAuth(data), user: profile, needs_email_confirmation: false, message: 'Account created.' };
+  }
+
+  async function resendSignupEmail(payload = {}) {
+    const email = normalizedEmail(payload.email);
+    if (!email) return { error: 'Enter your email first.' };
+    const { response, data } = await fetchJson(`${supabaseUrl()}/auth/v1/resend`, {
+      method: 'POST',
+      headers: headers({ auth: false }),
+      body: JSON.stringify({
+        type: 'signup',
+        email,
+        options: {
+          emailRedirectTo: authRedirectTo('/auth/callback.html'),
+        },
+      }),
+    }, { auth: false });
+    if (!response.ok || data?.error) return data;
+    return {
+      ok: true,
+      message: 'Verification email sent. Open it, then PostFreely will bring you back automatically.',
+    };
   }
 
   async function refresh(payload = {}) {
@@ -662,6 +698,7 @@ window.PostFreelyCloudAPI = (() => {
     clearHistory,
     login,
     signup,
+    resendSignupEmail,
     refresh,
     logout,
     me,

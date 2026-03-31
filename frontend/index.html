@@ -554,8 +554,24 @@
         <input id="signin-name" type="text" placeholder="Shown inside PostFreely"/>
       </div>
       <div class="field"><label>Email</label><input id="signin-email" type="email" placeholder="you@example.com"/></div>
-      <div class="field"><label>Password</label><input id="signin-password" type="password" placeholder="Your password"/></div>
+      <div class="field">
+        <label>Password</label>
+        <div class="password-field">
+          <input id="signin-password" type="password" placeholder="Your password" autocomplete="current-password"/>
+          <button class="password-toggle" id="signin-password-toggle" type="button" data-password-toggle="signin-password">Show</button>
+        </div>
+      </div>
+      <div class="field" id="signin-confirm-row" style="display:none">
+        <label>Confirm Password</label>
+        <div class="password-field">
+          <input id="signin-password-confirm" type="password" placeholder="Re-enter your password" autocomplete="new-password"/>
+          <button class="password-toggle" id="signin-password-confirm-toggle" type="button" data-password-toggle="signin-password-confirm">Show</button>
+        </div>
+      </div>
       <div class="info-box" id="signin-cloud-note">Use your PostFreely account to sync collections, environments, history, and runner data.</div>
+      <div class="auth-inline-actions">
+        <button class="link-btn" id="signin-resend-btn" type="button" style="display:none">Resend verification email</button>
+      </div>
       <div class="modal-err" id="signin-err"></div>
       <div class="modal-foot">
         <button class="btn-ghost" data-close-modal="signin-modal">Cancel</button>

@@ -530,6 +530,13 @@ button,input,select,textarea{font:inherit}
 .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent)}
 .field textarea{min-height:100px;resize:vertical}
 .field input[type=range]{padding:0;border:none;background:none;accent-color:var(--accent)}
+.password-field{display:flex;align-items:center;gap:8px}
+.password-field input{flex:1}
+.password-toggle{flex-shrink:0;min-width:58px;background:none;border:1px solid var(--border2);border-radius:var(--radius);padding:7px 10px;color:var(--text2);font-size:11px;cursor:pointer;transition:all .15s}
+.password-toggle:hover{border-color:var(--accentborder);color:var(--accent);background:var(--accentbg)}
+.auth-inline-actions{display:flex;justify-content:flex-start;margin:-2px 0 10px}
+.link-btn{background:none;border:none;padding:0;color:var(--accent);font-size:11px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.link-btn:hover{color:var(--text)}
 .modal-foot{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
 .btn-ghost{background:none;border:1px solid var(--border2);border-radius:var(--radius);padding:7px 18px;color:var(--text2);font-family:var(--font);font-size:12px;cursor:pointer;transition:all .15s}
 .btn-ghost:hover{border-color:var(--text2);color:var(--text)}

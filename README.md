@@ -76,6 +76,7 @@ Recommended free-first architecture:
 - Optional proxy/server mode only where direct browser access is blocked
 
 Cloudflare Pages build details live in [docs/cloudflare-pages.md](docs/cloudflare-pages.md).
+Supabase email confirmation and custom email branding notes live in [docs/supabase-auth-email.md](docs/supabase-auth-email.md).
 
 ## License
 

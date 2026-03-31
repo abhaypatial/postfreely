@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Confirm your PostFreely account</title>
+<style>
+  :root {
+    color-scheme: dark;
+  }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background:
+      radial-gradient(circle at top right, rgba(89, 239, 202, 0.15), transparent 28%),
+      radial-gradient(circle at bottom left, rgba(121, 167, 255, 0.14), transparent 30%),
+      #070c14;
+    color: #edf4ff;
+    font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  .card {
+    width: min(560px, calc(100vw - 32px));
+    padding: 30px;
+    border-radius: 24px;
+    border: 1px solid rgba(171, 192, 228, 0.18);
+    background: rgba(8, 13, 22, 0.82);
+    box-shadow: 0 24px 56px rgba(4, 8, 14, 0.36);
+  }
+  .kicker {
+    color: #59efca;
+    font-size: 12px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  h1 {
+    margin: 0 0 12px;
+    font-size: 30px;
+    line-height: 1.15;
+  }
+  p {
+    margin: 0 0 12px;
+    color: #a3b0c9;
+    line-height: 1.75;
+  }
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 18px;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: 0 18px;
+    border-radius: 10px;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .btn-primary {
+    border: none;
+    background: linear-gradient(180deg, #59efca, #48c8e6);
+    color: #04110b;
+  }
+  .btn-ghost {
+    border: 1px solid rgba(171, 192, 228, 0.18);
+    color: #edf4ff;
+    background: transparent;
+  }
+  .fine {
+    font-size: 11px;
+    color: #5f6d86;
+    margin-top: 16px;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="kicker">PostFreely account</div>
+    <h1 id="title">Confirming your email</h1>
+    <p id="message">We are handing the verification link back to Supabase so it can finish the secure sign-in flow.</p>
+    <div class="actions" id="actions" style="display:none">
+      <a class="btn btn-primary" id="continue-btn" href="/">Continue</a>
+      <a class="btn btn-ghost" href="/">Back to PostFreely</a>
+    </div>
+    <div class="fine">If nothing happens in a few seconds, use the continue button.</div>
+  </div>
+<script>
+  const title = document.getElementById('title');
+  const message = document.getElementById('message');
+  const actions = document.getElementById('actions');
+  const continueBtn = document.getElementById('continue-btn');
+  const params = new URLSearchParams(window.location.search);
+  const confirmationUrl = params.get('confirmation_url') || '';
+
+  if (!confirmationUrl) {
+    title.textContent = 'Confirmation link missing';
+    message.textContent = 'This page expects a Supabase confirmation link. Open the verification email again and use the button from there.';
+    actions.style.display = 'flex';
+  } else {
+    continueBtn.href = confirmationUrl;
+    actions.style.display = 'flex';
+    setTimeout(() => {
+      window.location.replace(confirmationUrl);
+    }, 900);
+  }
+</script>
+</body>
+</html>

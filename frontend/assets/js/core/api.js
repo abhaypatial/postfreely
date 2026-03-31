@@ -494,6 +494,7 @@ const API = {
   // Auth
   login:                 (d)     => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.login(d || {}) : request('POST', '/api/auth/login', d, { skipAuth: true, scoped: false }),
   signup:                (d)     => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.signup(d || {}) : request('POST', '/api/auth/signup', d, { skipAuth: true, scoped: false }),
+  resendSignupEmail:     (d)     => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.resendSignupEmail(d || {}) : Promise.resolve({ error: 'Email verification resend is only available in cloud auth mode.' }),
   refresh:               (d)     => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.refresh(d || {}) : request('POST', '/api/auth/refresh', d, { skipAuth: true, scoped: false }),
   logout:                ()      => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.logout() : request('POST', '/api/auth/logout', {}, { scoped: false }),
   me:                    ()      => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.me() : request('GET', '/api/auth/me', undefined, { scoped: false }),

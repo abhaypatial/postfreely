@@ -569,9 +569,20 @@ function wireUI() {
   document.getElementById('do-signin-btn').addEventListener('click', doSignIn);
   document.getElementById('do-local-signin-btn').addEventListener('click', doLocalSignIn);
   document.getElementById('do-google-signin-btn').addEventListener('click', startGoogleSignIn);
+  document.getElementById('signin-resend-btn').addEventListener('click', resendVerificationEmail);
   document.getElementById('do-signout-btn').addEventListener('click', doSignOut);
   document.querySelectorAll('#signin-mode-tabs .seg-tab').forEach(tab =>
     tab.addEventListener('click', () => setAuthMode(tab.dataset.authMode)));
+  document.querySelectorAll('[data-password-toggle]').forEach(btn =>
+    btn.addEventListener('click', () => togglePasswordVisibility(btn.dataset.passwordToggle)));
+  ['signin-email', 'signin-password', 'signin-password-confirm', 'signin-name'].forEach(id => {
+    document.getElementById(id)?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        doSignIn();
+      }
+    });
+  });
 
   // Collection overview save/delete
   document.getElementById('save-coll-overview-btn').addEventListener('click', saveCollectionOverview);
