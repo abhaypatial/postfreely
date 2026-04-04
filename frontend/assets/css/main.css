@@ -348,8 +348,13 @@ button,input,select,textarea{font:inherit}
 .tb-btn{background:var(--btn-bg);border:1px solid var(--border2);border-radius:var(--radius);padding:5px 10px;color:var(--text2);cursor:pointer;font-size:11px;font-family:var(--font);display:flex;align-items:center;gap:4px;transition:all .15s;white-space:nowrap}
 .tb-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accentbg)}
 .tb-btn.danger:hover{border-color:var(--red);color:var(--red)}
-#admin-scope-wrap{display:flex;align-items:center;gap:8px;padding:4px 8px 4px 10px;border:1px solid var(--border2);border-radius:999px;background:rgba(255,255,255,0.03)}
+#admin-scope-wrap{display:flex;align-items:center;gap:8px;padding:3px 8px 3px 9px;border:1px solid var(--border2);border-radius:999px;background:rgba(255,255,255,0.03)}
 .tb-meta-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.14em;font-weight:700;font-family:var(--font-ui)}
+.tb-meta-icon{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:999px;border:1px solid var(--accentborder);background:var(--accentbg);position:relative;flex-shrink:0}
+.tb-meta-icon::before,
+.tb-meta-icon::after{content:'';position:absolute;inset:auto}
+.tb-meta-icon::before{width:8px;height:8px;border:1px solid currentColor;border-radius:2px;color:var(--accent);box-shadow:5px 5px 0 -1px currentColor}
+.tb-meta-icon::after{display:none}
 #admin-scope-sel{min-width:180px;background:transparent;border:none;color:var(--text);font-family:var(--font);font-size:11px;outline:none}
 #user-btn{background:var(--accentbg);border:1px solid var(--accentborder);color:var(--accent);border-radius:var(--radius);padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font)}
 #user-btn:hover{background:var(--accent);color:#000}
@@ -797,8 +802,8 @@ select option{background:var(--bg3);color:var(--text)}
   display:flex;
   flex-direction:column;
   height:auto;
-  padding:8px 14px 8px;
-  gap:8px;
+  padding:6px 12px 6px;
+  gap:6px;
   background:linear-gradient(180deg,rgba(19,22,30,0.96),rgba(13,15,20,0.88));
   backdrop-filter:blur(18px);
   box-shadow:0 14px 32px rgba(0,0,0,0.16);
@@ -807,21 +812,21 @@ select option{background:var(--bg3);color:var(--text)}
   display:flex;
   align-items:center;
   justify-content:space-between;
-  gap:12px;
+  gap:10px;
   min-height:0;
 }
 #brand-area{
   display:flex;
   flex-direction:column;
-  gap:2px;
+  gap:1px;
   min-width:0;
   padding-right:8px;
 }
 #brand-tagline{
-  font-size:10px;
+  font-size:9px;
   color:var(--text3);
   text-transform:uppercase;
-  letter-spacing:.18em;
+  letter-spacing:.16em;
   font-family:var(--font-ui);
   white-space:nowrap;
 }
@@ -829,7 +834,7 @@ select option{background:var(--bg3);color:var(--text)}
   display:flex;
   align-items:center;
   justify-content:flex-end;
-  gap:10px;
+  gap:8px;
   flex:1;
   min-width:0;
   flex-wrap:nowrap;
@@ -855,8 +860,8 @@ select option{background:var(--bg3);color:var(--text)}
 #topbar-tabs{
   display:flex;
   align-items:center;
-  gap:8px;
-  min-height:38px;
+  gap:6px;
+  min-height:34px;
 }
 #tab-bar-wrap{
   position:relative;
@@ -899,7 +904,7 @@ select option{background:var(--bg3);color:var(--text)}
   cursor:default;
 }
 #logo{
-  font-size:calc(18px * var(--ui-scale,1));
+  font-size:calc(16px * var(--ui-scale,1));
   letter-spacing:-0.06em;
   margin-right:0;
 }
@@ -910,10 +915,10 @@ select option{background:var(--bg3);color:var(--text)}
   background-clip:text;
 }
 #add-tab{
-  width:38px;
-  height:38px;
+  width:32px;
+  height:32px;
   border:1px solid var(--border2);
-  border-radius:14px;
+  border-radius:12px;
   background:linear-gradient(180deg,rgba(255,255,255,0.035),rgba(255,255,255,0.012));
   color:var(--text2);
   font-size:20px;
@@ -928,16 +933,17 @@ select option{background:var(--bg3);color:var(--text)}
   align-items:center;
   flex:0 0 auto;
   gap:8px;
-  min-width:148px;
-  max-width:220px;
-  padding:8px 12px;
-  border-radius:16px;
+  min-width:132px;
+  max-width:208px;
+  padding:7px 11px;
+  border-radius:14px;
   border:1px solid rgba(171,192,228,0.12);
   background:linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.012));
   color:var(--text2);
   box-shadow:var(--panel-edge);
 }
 .tab .t-name{min-width:0}
+.tab .t-meth{font-size:9px}
 .tab:hover{
   background:linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.018));
   border-color:rgba(171,192,228,0.22);
@@ -1004,6 +1010,7 @@ select option{background:var(--bg3);color:var(--text)}
 }
 #req-content{
   border-bottom:1px solid var(--border);
+  padding-top:6px;
 }
 #resp-panel{
   box-shadow:var(--panel-edge),var(--panel-glow);
@@ -1017,6 +1024,52 @@ select option{background:var(--bg3);color:var(--text)}
 #resp-tests,
 #resp-ai{
   background:transparent;
+}
+#resp-out{
+  padding-top:18px;
+  background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.006));
+}
+#resp-hdrs,
+#resp-preview,
+#resp-tests,
+#resp-ai{
+  padding-top:18px;
+}
+#resp-meta{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+}
+.resp-request-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  margin-right:8px;
+  padding:4px 10px;
+  border:1px solid var(--border2);
+  border-radius:999px;
+  background:rgba(255,255,255,0.03);
+  color:var(--text2);
+  max-width:min(42vw,520px);
+}
+.resp-request-pill .req-method{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:44px;
+  padding:2px 8px;
+  border-radius:999px;
+  background:var(--accentbg);
+  color:var(--accent);
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:.08em;
+}
+.resp-request-pill .req-url{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:11px;
 }
 #url-bar{
   gap:10px;
@@ -1324,6 +1377,11 @@ select option{background:var(--bg3);color:var(--text)}
   #url-bar{padding-top:8px;padding-bottom:8px}
   .theme-effect-grid{grid-template-columns:1fr}
   .vars-shell{grid-template-columns:1fr}
+  .resp-request-pill{
+    order:4;
+    max-width:100%;
+    flex:1 1 100%;
+  }
 }
 @media (max-width: 720px) {
   #brand-tagline{

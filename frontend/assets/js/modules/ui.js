@@ -885,6 +885,13 @@ function renderResponse(resp, preferredTab = '') {
   document.getElementById('resp-topbar').style.display = '';
   document.getElementById('resp-ai').classList.remove('visible');
   const desiredTab = preferredTab || State.activeResponseTab || 'body';
+  const activeTab = State.getTab(State.activeTab);
+  const activeUrl = activeTab?.url || '';
+  const requestSummary = activeTab ? `
+    <span class="resp-request-pill" title="${esc(activeUrl)}">
+      <span class="req-method">${esc(activeTab.method || 'GET')}</span>
+      <span class="req-url">${esc(activeUrl || activeTab.name || 'Request')}</span>
+    </span>` : '';
 
   const tb = document.getElementById('resp-topbar');
   const preview = document.getElementById('resp-preview');
@@ -904,6 +911,7 @@ function renderResponse(resp, preferredTab = '') {
       <div class="err-body">${esc(resp.error || 'Unknown error')}</div>`;
 
     tb.innerHTML = `
+      ${requestSummary}
       <span class="status-pill s4">0 Connection Error</span>
       <span id="resp-meta">${resp.elapsed_ms || 0}ms</span>
       <span class="resp-exec-mode ${esc(resp.execution_mode || 'proxy')}">${esc((resp.execution_mode || 'proxy').toUpperCase())}</span>`;
@@ -930,6 +938,7 @@ function renderResponse(resp, preferredTab = '') {
     : `${resp.size_bytes} B`;
 
   tb.innerHTML = `
+    ${requestSummary}
     <span class="status-pill ${cls}">${sc} ${esc(resp.status_text)}</span>
     <span id="resp-meta">${resp.elapsed_ms}ms · ${size}</span>
     <span class="resp-exec-mode ${esc(resp.execution_mode || 'proxy')}">${esc((resp.execution_mode || 'proxy').toUpperCase())}</span>

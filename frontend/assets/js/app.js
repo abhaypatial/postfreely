@@ -681,7 +681,8 @@ async function doSend() {
     tab.response     = result;
     State.lastResponse = result;
     State.aiHistory  = [];
-    renderResponse(result, State.activeResponseTab || 'body');
+    State.activeResponseTab = 'body';
+    renderResponse(result, 'body');
     updateBrowserCompatibilityUi(tab);
 
     // ── Run Post-script ─────────────────────────────────────
