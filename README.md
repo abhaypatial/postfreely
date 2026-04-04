@@ -1,4 +1,4 @@
-# PostFreely v3
+# PostFreely
 
 PostFreely is a fast API workspace with a browser-first runner, local-first development flow, and optional cloud mode for shared access.
 
