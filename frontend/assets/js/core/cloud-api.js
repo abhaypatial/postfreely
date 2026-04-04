@@ -49,7 +49,7 @@ window.PostFreelyCloudAPI = (() => {
       public_url: String(config().publicUrl || window.location.origin || ''),
       admin_emails_configured: true,
       proxy_enabled: false,
-      ai_enabled: false,
+      ai_enabled: true,
     };
   }
 
@@ -652,6 +652,399 @@ window.PostFreelyCloudAPI = (() => {
     return rows.map(row => sanitizeProfile(row));
   }
 
+  function clipText(value, limit = 4000) {
+    return String(value || '').trim().slice(0, limit);
+  }
+
+  function stripHtml(text = '') {
+    return String(text || '')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  async function fetchDocExcerpt(url) {
+    try {
+      const parsed = new URL(String(url || '').trim());
+      if (!/^https?:$/.test(parsed.protocol)) {
+        return { text: '', error: 'Only http/https doc URLs are supported.' };
+      }
+      const response = await fetch(parsed.toString(), {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json, text/plain, text/html, application/yaml, text/yaml, */*',
+        },
+        mode: 'cors',
+      });
+      const text = await response.text();
+      const contentType = response.headers.get('content-type') || '';
+      return {
+        text: clipText(contentType.includes('html') ? stripHtml(text) : text, 8000),
+        error: response.ok ? '' : `${response.status} ${response.statusText}`.trim(),
+      };
+    } catch (error) {
+      return { text: '', error: error?.message || 'Could not fetch docs from the browser.' };
+    }
+  }
+
+  function normalizeAiSources(collection = {}) {
+    const sources = [];
+    (collection.ai_sources || []).forEach(source => {
+      if (!source || typeof source !== 'object') return;
+      const type = String(source.type || 'note').trim().toLowerCase();
+      const content = String(source.content || '').trim();
+      if (!content) return;
+      sources.push({
+        id: String(source.id || ''),
+        type: ['url', 'note', 'file'].includes(type) ? type : 'note',
+        label: String(source.label || '').trim(),
+        content,
+        allow_fetch: !!source.allow_fetch,
+      });
+    });
+    if (sources.length) return sources;
+    if (collection.docs_url) {
+      sources.push({
+        id: 'legacy-docs-url',
+        type: 'url',
+        label: 'Docs URL',
+        content: String(collection.docs_url),
+        allow_fetch: !!collection.allow_ai_doc_fetch,
+      });
+    }
+    if (collection.docs_notes) {
+      sources.push({
+        id: 'legacy-docs-notes',
+        type: 'note',
+        label: 'Collection Notes',
+        content: String(collection.docs_notes),
+        allow_fetch: false,
+      });
+    }
+    return sources;
+  }
+
+  function collectionContextText(collection) {
+    if (!collection) return '';
+    const lines = [
+      `Collection: ${collection.name || ''}`,
+      `Description: ${collection.description || ''}`,
+      `Variables: ${JSON.stringify(collection.variables || {}, null, 1).slice(0, 1200)}`,
+      'Requests:',
+    ];
+    (collection.requests || []).slice(0, 12).forEach(request => {
+      lines.push(
+        `- ${request.name || request.url || ''}: ${request.method || 'GET'} ${request.url || ''} ` +
+        `headers=${JSON.stringify(request.headers || []).slice(0, 240)} body=${clipText(request.body || '', 240)}`
+      );
+    });
+    return lines.join('\n');
+  }
+
+  async function aiSourcesContext(collection, payload = {}) {
+    const selected = new Set((payload.selected_source_ids || []).map(value => String(value).trim()).filter(Boolean));
+    const sources = normalizeAiSources(collection).filter(source => !selected.size || selected.has(source.id));
+    const parts = [];
+    const fetched = [];
+    const errors = [];
+    let primaryUrl = '';
+
+    for (const [index, source] of sources.slice(0, 12).entries()) {
+      const label = source.label || `Source ${index + 1}`;
+      if (source.type === 'url') {
+        parts.push(`URL Source [${label}]: ${source.content}`);
+        if (!primaryUrl) primaryUrl = source.content;
+        if (payload.allow_doc_fetch || source.allow_fetch) {
+          const doc = await fetchDocExcerpt(source.content);
+          if (doc.text) {
+            parts.push(`Fetched source excerpt [${label}]:\n${doc.text}`);
+            fetched.push(source.content);
+          } else if (doc.error) {
+            errors.push(`${source.content} - ${doc.error}`);
+          }
+        }
+      } else if (source.type === 'file') {
+        parts.push(`Attached File [${label}]:\n${clipText(source.content, 5000)}`);
+      } else {
+        parts.push(`Saved Note [${label}]:\n${clipText(source.content, 4000)}`);
+      }
+    }
+
+    return {
+      text: parts.join('\n\n').trim(),
+      docs_fetched: fetched.length > 0,
+      docs_url: primaryUrl,
+      docs_fetch_error: errors.join('\n').trim(),
+    };
+  }
+
+  function normalizeCodeFenceJson(text = '') {
+    return String(text || '')
+      .trim()
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/i, '')
+      .replace(/\s*```$/i, '')
+      .trim();
+  }
+
+  async function aiConfig() {
+    const settings = await getSettings();
+    return {
+      provider: String(settings.ai_provider || '').trim().toLowerCase(),
+      apiKey: String(settings.ai_api_key || '').trim(),
+      model: String(settings.ai_model || '').trim(),
+      baseUrl: String(settings.ai_custom_url || '').trim(),
+    };
+  }
+
+  function aiDefaultModel(provider) {
+    return {
+      openai: 'gpt-4o-mini',
+      anthropic: 'claude-3-5-sonnet-latest',
+      gemini: 'gemini-1.5-flash',
+      deepseek: 'deepseek-chat',
+      perplexity: 'llama-3.1-sonar-small-128k-online',
+      ollama: 'llama3',
+      custom: '',
+    }[provider] || '';
+  }
+
+  async function parseJsonResponse(response) {
+    const text = await response.text();
+    if (!text) return {};
+    try {
+      return JSON.parse(text);
+    } catch (_) {
+      return { raw: text };
+    }
+  }
+
+  async function openAiCompat(endpoint, payload, apiKey, extraHeaders = {}) {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+        ...extraHeaders,
+      },
+      body: JSON.stringify(payload),
+    });
+    const data = await parseJsonResponse(response);
+    if (!response.ok) {
+      const msg = data?.error?.message || data?.error || data?.message || `${response.status} ${response.statusText}`.trim();
+      throw new Error(msg);
+    }
+    return data;
+  }
+
+  async function callAiProvider(system, userPrompt) {
+    const settings = await aiConfig();
+    if (!settings.provider) throw new Error('No AI provider configured. Open AI Config to set one up.');
+    if (!settings.apiKey && !['ollama', 'custom'].includes(settings.provider)) {
+      throw new Error(`No API key for ${settings.provider}. Open AI Config to add your key.`);
+    }
+
+    const model = settings.model || aiDefaultModel(settings.provider);
+    if (settings.provider === 'openai') {
+      const data = await openAiCompat('https://api.openai.com/v1/chat/completions', {
+        model,
+        max_tokens: 1800,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: userPrompt },
+        ],
+      }, settings.apiKey);
+      return data?.choices?.[0]?.message?.content || '';
+    }
+
+    if (settings.provider === 'deepseek') {
+      const data = await openAiCompat('https://api.deepseek.com/v1/chat/completions', {
+        model,
+        max_tokens: 1800,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: userPrompt },
+        ],
+      }, settings.apiKey);
+      return data?.choices?.[0]?.message?.content || '';
+    }
+
+    if (settings.provider === 'perplexity') {
+      const data = await openAiCompat('https://api.perplexity.ai/chat/completions', {
+        model,
+        max_tokens: 1800,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: userPrompt },
+        ],
+      }, settings.apiKey);
+      return data?.choices?.[0]?.message?.content || '';
+    }
+
+    if (settings.provider === 'anthropic') {
+      const data = await openAiCompat('https://api.anthropic.com/v1/messages', {
+        model: model || 'claude-3-5-sonnet-latest',
+        max_tokens: 1800,
+        system,
+        messages: [{ role: 'user', content: userPrompt }],
+      }, '', {
+        'x-api-key': settings.apiKey,
+        'anthropic-version': '2023-06-01',
+      });
+      return data?.content?.map(item => item?.text || '').join('\n').trim() || '';
+    }
+
+    if (settings.provider === 'gemini') {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-1.5-flash'}:generateContent?key=${encodeURIComponent(settings.apiKey)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: `${system}\n\n${userPrompt}` }] }],
+        }),
+      });
+      const data = await parseJsonResponse(response);
+      if (!response.ok) throw new Error(data?.error?.message || data?.error || `${response.status} ${response.statusText}`.trim());
+      return data?.candidates?.[0]?.content?.parts?.map(part => part?.text || '').join('\n').trim() || '';
+    }
+
+    if (settings.provider === 'ollama') {
+      const base = settings.baseUrl || 'http://localhost:11434';
+      const data = await openAiCompat(`${base.replace(/\/+$/, '')}/api/chat`, {
+        model: model || 'llama3',
+        stream: false,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: userPrompt },
+        ],
+      }, '');
+      return data?.message?.content || '';
+    }
+
+    if (settings.provider === 'custom') {
+      if (!settings.baseUrl) throw new Error('Custom AI URL not set.');
+      const data = await openAiCompat(settings.baseUrl, {
+        model,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: userPrompt },
+        ],
+      }, settings.apiKey);
+      return data?.choices?.[0]?.message?.content || data?.content || data?.message || JSON.stringify(data);
+    }
+
+    throw new Error(`Unknown provider: ${settings.provider}`);
+  }
+
+  function formatHistory(history = []) {
+    return (history || []).slice(-6).map(item => `${String(item.role || 'user').toUpperCase()}: ${String(item.content || '')}`).join('\n');
+  }
+
+  async function aiChat(payload = {}) {
+    const message = String(payload.message || '').trim();
+    if (!message) return { error: 'message required' };
+    const collection = payload.collection_id ? await getCollection(payload.collection_id) : null;
+    const collectionText = collectionContextText(collection);
+    const docs = await aiSourcesContext(collection, payload);
+    let system = 'You are PostFreely AI - an expert embedded in a browser-native API workspace. Help debug HTTP requests, explain responses, generate request bodies, write tests, and explain REST or GraphQL concepts. Be concise and technical.';
+    if (collectionText) system += `\n\nCurrent collection context:\n${clipText(collectionText, 4000)}`;
+    if (docs.text) system += `\n\nAPI docs context:\n${clipText(docs.text, 5000)}`;
+    if (payload.api_response) {
+      system += `\n\nCurrent API response:\nStatus: ${payload.api_response.status_code} ${payload.api_response.status_text}\nBody:\n${clipText(payload.api_response.body, 1800)}`;
+    }
+    const history = formatHistory(payload.history || []);
+    try {
+      const reply = await callAiProvider(system, `${history ? `${history}\n` : ''}USER: ${message}`.trim());
+      return {
+        reply,
+        docs_fetched: docs.docs_fetched,
+        docs_url: docs.docs_url,
+        docs_fetch_error: docs.docs_fetch_error,
+      };
+    } catch (error) {
+      return { error: error?.message || String(error) };
+    }
+  }
+
+  async function aiAnalyze(payload = {}) {
+    const response = payload.response || {};
+    if (!response || !Object.keys(response).length) return { error: 'No response to analyze' };
+    const system = 'You are an expert API debugger. Analyze the HTTP response clearly.';
+    const prompt = [
+      `Analyze:\nStatus: ${response.status_code} ${response.status_text}`,
+      `Time: ${response.elapsed_ms}ms  Size: ${response.size_bytes}B`,
+      `Headers:\n${clipText(JSON.stringify(response.headers || {}, null, 1), 700)}`,
+      `Body:\n${clipText(response.body, 2200)}`,
+      'Give: 1) What this means  2) Issues or warnings  3) Suggestions',
+    ].join('\n');
+    try {
+      return { analysis: await callAiProvider(system, prompt) };
+    } catch (error) {
+      return { error: error?.message || String(error) };
+    }
+  }
+
+  async function aiGenerate(payload = {}) {
+    const description = String(payload.description || '').trim();
+    if (!description) return { error: 'description required' };
+    const collection = payload.collection_id ? await getCollection(payload.collection_id) : null;
+    const collectionText = collectionContextText(collection);
+    const docs = await aiSourcesContext(collection, payload);
+    const system = 'Output ONLY valid JSON (no markdown) with keys: {"method":"GET","url":"https://...","headers":[[key,val]],"params":[[key,val]],"body":"...","bodyType":"json","auth":{"type":"none"},"prescript":"","postscript":"","description":"one-line summary"}\nIf the API needs authentication, set auth.type to bearer/basic/apikey/oauth2 and fill the matching fields.\nIf the workflow needs token exchange, request signing, or response extraction, use prescript/postscript.';
+    const prompt = [
+      `Goal:\n${description}`,
+      `Collection context:\n${collectionText || 'None'}`,
+      `AI sources:\n${docs.text || 'None'}`,
+      'Generate the best saved request for PostFreely. Prefer concrete URLs, params, auth details, and scripts over vague placeholders.',
+    ].join('\n\n');
+    try {
+      const reply = await callAiProvider(system, prompt);
+      try {
+        return {
+          ...JSON.parse(normalizeCodeFenceJson(reply)),
+          docs_fetched: docs.docs_fetched,
+          docs_url: docs.docs_url,
+          docs_fetch_error: docs.docs_fetch_error,
+        };
+      } catch (_) {
+        return { raw: reply };
+      }
+    } catch (error) {
+      return { error: error?.message || String(error) };
+    }
+  }
+
+  async function aiFix(payload = {}) {
+    const currentRequest = payload.request || {};
+    const currentResponse = payload.response || {};
+    if (!Object.keys(currentRequest).length && !Object.keys(currentResponse).length) {
+      return { error: 'request or response required' };
+    }
+    const collection = payload.collection_id ? await getCollection(payload.collection_id) : null;
+    const collectionText = collectionContextText(collection);
+    const docs = await aiSourcesContext(collection, payload);
+    const system = 'You are PostFreely AI working as a senior API debugger and API designer. Use the request, response, collection, variables, scripts, and docs context to propose a concrete fix. Be specific about what should change in the URL, headers, auth, body, pre-script, and post-script. If docs were not fetched but would likely help, say so explicitly.';
+    const prompt = [
+      `Current request:\n${clipText(JSON.stringify(currentRequest, null, 2), 3200)}`,
+      `Current response:\n${clipText(JSON.stringify(currentResponse, null, 2), 3600)}`,
+      `Collection context:\n${collectionText || 'None'}`,
+      `Docs context:\n${docs.text || 'None'}`,
+      'Give:\n1. Root cause\n2. Exact request fixes\n3. Suggested body/auth/header changes\n4. Suggested pre-script/post-script changes if useful\n5. A short checklist to retry safely',
+    ].join('\n\n');
+    try {
+      return {
+        suggestion: await callAiProvider(system, prompt),
+        docs_fetched: docs.docs_fetched,
+        docs_url: docs.docs_url,
+        docs_fetch_error: docs.docs_fetch_error,
+      };
+    } catch (error) {
+      return { error: error?.message || String(error) };
+    }
+  }
+
   function proxyError() {
     return Promise.resolve({
       status_code: 0,
@@ -712,9 +1105,9 @@ window.PostFreelyCloudAPI = (() => {
     runCollection: () => unsupported('Cloud runner jobs are disabled in the static Pages deployment. Use the browser runner.'),
     getCollectionRun: () => unsupported('Cloud runner jobs are disabled in the static Pages deployment.'),
     stopCollectionRun: () => unsupported('Cloud runner jobs are disabled in the static Pages deployment.'),
-    aiChat: () => unsupported('AI chat is not configured for the static Pages deployment yet.'),
-    aiAnalyze: () => unsupported('AI analysis is not configured for the static Pages deployment yet.'),
-    aiGenerate: () => unsupported('AI generation is not configured for the static Pages deployment yet.'),
-    aiFix: () => unsupported('AI fix suggestions are not configured for the static Pages deployment yet.'),
+    aiChat,
+    aiAnalyze,
+    aiGenerate,
+    aiFix,
   };
 })();

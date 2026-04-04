@@ -427,6 +427,8 @@ const THEMES = [
   { id:'eclipse',   name:'Eclipse Ring',  colors:['#050607','#ffb15f','#3b434d'], desc:'black stage, warm halo, and mirror-like quiet' },
   { id:'cathedral', name:'Cathedral Fog', colors:['#f1f2ee','#55595f','#adb4bb'], desc:'monumental grayscale light with serene clarity' },
   { id:'scarlet',   name:'Scarlet Field', colors:['#120304','#ff2c2c','#731313'], desc:'velvet red horizon with cinematic danger' },
+  { id:'threshold', name:'Threshold',     colors:['#0f1419','#ff7c45','#ffe0c2'], desc:'burning portal palette for intense troubleshooting sessions' },
+  { id:'ritual',    name:'Ritual Ash',    colors:['#050505','#d5c2a5','#8e7a66'], desc:'sculptural charcoal scene with warm mineral accents' },
 ];
 
 const BG_PRESETS = [
@@ -441,6 +443,9 @@ const BG_PRESETS = [
   { id:'desert-sun',name:'Desert Sun', css:'radial-gradient(circle at 50% 52%,rgba(255,186,61,.94) 0%,rgba(255,150,51,.88) 16%,transparent 18%),linear-gradient(180deg,#6c1218 0%,#932125 38%,#6e2a1c 58%,#2b1010 100%)' },
   { id:'oracle-violet',name:'Oracle Violet', css:'radial-gradient(circle at 63% 24%,rgba(185,130,255,.85) 0%,rgba(185,130,255,.38) 14%,transparent 18%),radial-gradient(circle at 65% 24%,rgba(255,255,255,.85) 0%,rgba(255,255,255,.0) 42%),linear-gradient(135deg,#090b12 0%,#18132f 42%,#100f23 100%)' },
   { id:'blind-justice',name:'Blind Justice', css:'radial-gradient(circle at 78% 22%,rgba(212,170,111,.38) 0%,transparent 22%),radial-gradient(circle at 78% 22%,rgba(255,255,255,.22) 0%,transparent 38%),linear-gradient(135deg,#050608 0%,#121823 42%,#0a0f16 100%)' },
+  { id:'red-door',name:'Red Door', css:'radial-gradient(circle at 74% 36%,rgba(255,126,74,.56) 0%,transparent 18%),linear-gradient(180deg,#2f0a12 0%,#43111c 36%,#21060d 100%),linear-gradient(90deg,transparent 0 72%,rgba(255,108,69,.18) 72% 74%,transparent 74% 100%)' },
+  { id:'stair-light',name:'Stair Light', css:'radial-gradient(circle at 50% 18%,rgba(255,255,255,.86) 0%,rgba(255,255,255,.26) 16%,transparent 22%),linear-gradient(180deg,#121316 0%,#313339 44%,#16171a 100%)' },
+  { id:'velocity-orange',name:'Velocity Orange', css:'radial-gradient(circle at 74% 54%,rgba(255,167,92,.36) 0%,transparent 24%),linear-gradient(180deg,#0b0d12 0%,#1a1b20 36%,#111215 100%),linear-gradient(180deg,transparent 0 80%,rgba(255,140,72,.22) 80% 100%)' },
   { id:'custom',   name:'Custom URL',  css:'' },
 ];
 
@@ -453,7 +458,7 @@ function normalizeThemeId(id) {
     dark: 'graphite',
     light: 'calm',
     midnight: 'aurora',
-    terminal: 'vibrant',
+    terminal: 'scarlet',
     solarized: 'ember',
   })[id] || id || 'graphite';
 }
@@ -650,6 +655,9 @@ function applyBackground(presetId, customUrl) {
   document.body.style.setProperty('--custom-bg', css || 'none');
   State.settings.background = presetId;
   State.settings.custom_bg  = String(customUrl || '').trim();
+  if (presetId !== 'none' && Number(State.settings.bg_opacity || 0) < 0.24) {
+    applyOpacity(0.24);
+  }
   if (presetId !== 'custom') {
     applyBackgroundFrame('cover', 50, 50);
   } else {
@@ -713,7 +721,8 @@ function applySettings(s) {
   if (css) document.body.style.setProperty('--custom-bg', css);
   else document.body.style.setProperty('--custom-bg', 'none');
   applyBackgroundFrame(s.bg_size || 'cover', s.bg_pos_x ?? 50, s.bg_pos_y ?? 50);
-  document.body.style.setProperty('--bg-opacity', s.bg_opacity ?? 0.18);
+  const bgOpacity = s.bg_opacity == null ? (bg === 'none' ? 0.18 : 0.24) : s.bg_opacity;
+  document.body.style.setProperty('--bg-opacity', bgOpacity);
   applyBackgroundEffects(s.bg_blur ?? 0, s.bg_bokeh ?? 18);
 }
 

@@ -138,6 +138,7 @@ function persistWorkspace() {
       reqPanelHeight: State.reqPanelHeight,
       reqPanelManual: State.reqPanelManual,
       activeRequestTab: document.querySelector('.stab.active')?.dataset.st || 'params',
+      activeResponseTab: State.activeResponseTab || 'body',
       sidebarCollapsed: document.getElementById('sidebar')?.classList.contains('collapsed') || false,
     };
     localStorage.setItem(WORKSPACE_STORAGE_KEY, JSON.stringify(data));
@@ -158,6 +159,7 @@ function restoreWorkspace() {
     State.activeTab = data.activeTab;
     State.reqPanelHeight = typeof data.reqPanelHeight === 'number' ? data.reqPanelHeight : null;
     State.reqPanelManual = !!data.reqPanelManual;
+    State.activeResponseTab = data.activeResponseTab || 'body';
 
     const ids = State.tabs.map(tab => Number(String(tab.id || '').replace(/\D/g, '')) || 0);
     State.nextTabId = Math.max(data.nextTabId || 1, ...ids.map(n => n + 1));
@@ -476,6 +478,12 @@ function wireUI() {
   document.getElementById('tab-scroll-left').addEventListener('click', () => scrollTabsBy(-220));
   document.getElementById('tab-scroll-right').addEventListener('click', () => scrollTabsBy(220));
   document.getElementById('tab-bar-wrap').addEventListener('scroll', syncTabScrollButtons);
+  document.getElementById('tab-bar-wrap').addEventListener('wheel', e => {
+    if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+    e.preventDefault();
+    e.currentTarget.scrollLeft += e.deltaY;
+    syncTabScrollButtons();
+  }, { passive: false });
   document.getElementById('admin-scope-sel').addEventListener('change', e => {
     API.setViewOwnerId(e.target.value || '');
   });
@@ -673,9 +681,8 @@ async function doSend() {
     tab.response     = result;
     State.lastResponse = result;
     State.aiHistory  = [];
-    renderResponse(result);
+    renderResponse(result, State.activeResponseTab || 'body');
     updateBrowserCompatibilityUi(tab);
-    scheduleWorkspacePersist();
 
     // ── Run Post-script ─────────────────────────────────────
     const postLog = document.getElementById('postscript-log');
@@ -688,8 +695,16 @@ async function doSend() {
         applyScriptEnvChanges(post.envChanges);
         showToast(`Script saved ${Object.keys(post.envChanges).length} variable(s) to env`);
       }
+      result.tests = post.tests || [];
+      result.postscript_logs = post.logs || [];
+      result.postscript_error = post.error || '';
+      tab.response = result;
+      State.lastResponse = result;
       showPostScriptBadge(post.tests);
+      renderResponse(result, State.activeResponseTab || 'body');
     }
+
+    scheduleWorkspacePersist();
 
     // Show bottom error toast for connection errors (like Postman)
     if (result.connection_error || result.status_code === 0) {

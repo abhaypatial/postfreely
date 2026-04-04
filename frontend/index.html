@@ -103,6 +103,7 @@
       <div id="req-subtabs">
         <div class="stab active" data-st="params">Params <span class="cnt" id="params-cnt"></span></div>
         <div class="stab" data-st="headers">Headers <span class="cnt" id="headers-cnt"></span></div>
+        <div class="stab" data-st="variables">Variables <span class="cnt" id="variables-cnt"></span></div>
         <div class="stab" data-st="body">Body</div>
         <div class="stab" data-st="auth">Auth</div>
         <div class="stab" data-st="prescript">Pre-script</div>
@@ -120,6 +121,11 @@
         <!-- Headers -->
         <div class="spanel" id="panel-headers">
           <div class="kv-grid" id="headers-kv"></div>
+        </div>
+
+        <!-- Variables -->
+        <div class="spanel" id="panel-variables">
+          <div id="variables-panel"></div>
         </div>
 
         <!-- Body -->
@@ -203,6 +209,7 @@
           <pre id="resp-out"></pre>
           <div id="resp-preview"></div>
           <div id="resp-hdrs"></div>
+          <div id="resp-tests"></div>
           <div id="resp-ai">
             <div id="ai-quick-actions">
               <button class="ai-quick" data-ai-prompt="Summarize this response in plain English, including the important fields and any warnings.">Summarize</button>

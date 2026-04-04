@@ -129,6 +129,7 @@ function loadTabToUI(tab) {
   const transportSel = document.getElementById('transport-sel');
   if (transportSel) transportSel.value = tab.transportMode || 'auto';
   if (typeof updateBrowserCompatibilityUi === 'function') updateBrowserCompatibilityUi(tab);
+  renderVariablesPanel(tab.collectionId || null);
   // Clear script logs when switching tabs
   ['prescript-log','postscript-log'].forEach(id => {
     const el = document.getElementById(id);
@@ -142,7 +143,7 @@ function loadTabToUI(tab) {
   // show response if tab has one
   if (tab.response) {
     State.lastResponse = tab.response;
-    renderResponse(tab.response);
+    renderResponse(tab.response, State.activeResponseTab || 'body');
   } else {
     showRespEmpty();
   }
@@ -209,8 +210,12 @@ function readKV(containerId) {
 function updateSubTabCounts() {
   const pc = readKV('params-kv').length;
   const hc = readKV('headers-kv').length;
+  const activeTab = State.getTab(State.activeTab);
+  const vc = Object.keys(State.variablesFor(activeTab?.collectionId || null).merged || {}).length;
   document.getElementById('params-cnt').textContent  = pc  || '';
   document.getElementById('headers-cnt').textContent = hc  || '';
+  const variablesCnt = document.getElementById('variables-cnt');
+  if (variablesCnt) variablesCnt.textContent = vc || '';
 }
 
 // ── Body type ─────────────────────────────────────────────────
@@ -301,6 +306,96 @@ function renderEnvStrip() {
   const vars = State.activeEnvVars();
   const keys = Object.keys(vars).filter(k => vars[k]);
   prev.textContent = keys.length ? keys.map(k=>`{{${k}}}`).join('  ') : '';
+  const activeTab = State.getTab(State.activeTab);
+  renderVariablesPanel(activeTab?.collectionId || null);
+  updateSubTabCounts();
+}
+
+function renderVariablesPanel(collectionId = null) {
+  const panel = document.getElementById('variables-panel');
+  if (!panel) return;
+
+  const envId = State.environments.active;
+  const env = envId ? (State.environments.envs || {})[envId] : null;
+  const collection = collectionId ? State.collections[collectionId] : null;
+  const envVars = env?.variables || {};
+  const colVars = collection?.variables || {};
+
+  function renderRows(scope, vars, scopeLabel, sourceLabel) {
+    const entries = Object.entries(vars || {});
+    if (!entries.length) {
+      return `
+        <div class="vars-empty">
+          <div class="vars-empty-title">No ${scopeLabel.toLowerCase()} variables yet</div>
+          <button class="vars-edit-btn" type="button" data-var-action="new" data-var-scope="${scope}">
+            Add ${scopeLabel} variable
+          </button>
+        </div>`;
+    }
+
+    return `
+      <div class="vars-list">
+        ${entries.map(([key, value]) => `
+          <button class="var-chip-card" type="button" data-var-edit="${esc(key)}">
+            <span class="var-chip-name">{{${esc(key)}}}</span>
+            <span class="var-chip-value">${esc(String(value ?? ''))}</span>
+            <span class="var-chip-meta">${esc(sourceLabel)}</span>
+          </button>`).join('')}
+      </div>
+      <button class="vars-edit-btn secondary" type="button" data-var-action="new" data-var-scope="${scope}">
+        Add another
+      </button>`;
+  }
+
+  panel.innerHTML = `
+    <div class="vars-shell">
+      <div class="vars-section">
+        <div class="vars-section-head">
+          <div>
+            <div class="vars-kicker">Environment</div>
+            <div class="vars-title">${esc(env?.name || 'No environment selected')}</div>
+          </div>
+          <button class="vars-edit-btn" type="button" data-var-action="manage-env">Manage</button>
+        </div>
+        ${renderRows('environment', envVars, 'Environment', env?.name || 'Environment')}
+      </div>
+      <div class="vars-section">
+        <div class="vars-section-head">
+          <div>
+            <div class="vars-kicker">Collection</div>
+            <div class="vars-title">${esc(collection?.name || 'Unsaved request')}</div>
+          </div>
+          <button class="vars-edit-btn" type="button" data-var-action="manage-collection" ${collection ? '' : 'disabled'}>
+            Manage
+          </button>
+        </div>
+        ${renderRows('collection', colVars, 'Collection', collection?.name || 'Collection')}
+      </div>
+    </div>`;
+
+  panel.querySelectorAll('[data-var-edit]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (typeof openVariableEditor === 'function') openVariableEditor(btn.dataset.varEdit || '', collectionId || null);
+    });
+  });
+
+  panel.querySelectorAll('[data-var-action]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const action = btn.dataset.varAction;
+      if (action === 'manage-env') {
+        if (typeof openEnvModal === 'function') openEnvModal(envId || null);
+        return;
+      }
+      if (action === 'manage-collection') {
+        if (collectionId && typeof openCollectionOverview === 'function') openCollectionOverview(collectionId);
+        return;
+      }
+      if (action === 'new') {
+        const key = prompt(`Variable name for the ${btn.dataset.varScope === 'collection' ? 'collection' : 'environment'}:`);
+        if (key && typeof openVariableEditor === 'function') openVariableEditor(key.trim(), collectionId || null);
+      }
+    });
+  });
 }
 
 function activateRequestSubTab(tabName, persist = true) {
@@ -317,19 +412,19 @@ function activateRequestSubTab(tabName, persist = true) {
 
 function getRequestPanelBounds() {
   const panel = document.getElementById('req-panel');
-  if (!panel) return { min: 150, max: Math.max(260, Math.floor(window.innerHeight * 0.72)) };
+  if (!panel) return { min: 118, max: Math.max(220, Math.floor(window.innerHeight * 0.46)) };
 
   const chromeIds = ['env-strip', 'url-bar', 'req-subtabs', 'resize-handle'];
   const chrome = chromeIds.reduce((sum, id) => sum + (document.getElementById(id)?.offsetHeight || 0), 0);
   const available = panel.clientHeight - chrome;
-  const min = 150;
-  const max = Math.max(min, available - 220);
+  const min = 118;
+  const max = Math.max(min, available - 340);
   return { min, max: Math.max(min, max) };
 }
 
 function autoSizeEditor(el) {
   if (!el) return;
-  const min = el.id === 'body-ta' ? 180 : 150;
+  const min = el.id === 'body-ta' ? 136 : 124;
   const panel = el.closest('.spanel');
   const siblingsHeight = panel
     ? [...panel.children]
@@ -340,7 +435,7 @@ function autoSizeEditor(el) {
     ? Math.max(min, panel.clientHeight - siblingsHeight - 2)
     : min;
   const contentHeight = Math.max(min, el.scrollHeight + 2);
-  const viewportCap = Math.max(min, Math.floor(window.innerHeight * (el.id === 'body-ta' ? 0.52 : 0.36)));
+  const viewportCap = Math.max(min, Math.floor(window.innerHeight * (el.id === 'body-ta' ? 0.28 : 0.2)));
   const next = State.reqPanelManual
     ? Math.max(contentHeight, available)
     : Math.max(Math.min(contentHeight, viewportCap), available);
@@ -371,8 +466,8 @@ function fitRequestPanelToContent(force = false) {
   if (State.reqPanelManual && !force) return;
   const activePanel = document.querySelector('.spanel.active');
   const { min, max } = getRequestPanelBounds();
-  let desired = min + 24;
-  if (activePanel) desired = activePanel.scrollHeight + 26;
+  let desired = min + 18;
+  if (activePanel) desired = activePanel.scrollHeight + 18;
   setRequestPanelHeight(desired, { manual: false, persist: false });
   const current = typeof State.reqPanelHeight === 'number' ? State.reqPanelHeight : desired;
   if (current > max) setRequestPanelHeight(max, { manual: false, persist: false });
@@ -773,20 +868,23 @@ function hideVariableTokenHighlight() {
 
 // ── Response ──────────────────────────────────────────────────
 function showRespEmpty() {
+  State.activeResponseTab = 'body';
   document.getElementById('resp-empty').style.display = '';
   document.getElementById('resp-out').style.display   = 'none';
   document.getElementById('resp-preview').style.display = 'none';
   document.getElementById('resp-hdrs').style.display  = 'none';
+  document.getElementById('resp-tests').style.display = 'none';
   document.getElementById('resp-error').style.display = 'none';
   document.getElementById('resp-ai').classList.remove('visible');
   document.getElementById('resp-ai').style.display = 'none';
   document.getElementById('resp-topbar').style.display = 'none';
 }
 
-function renderResponse(resp) {
+function renderResponse(resp, preferredTab = '') {
   document.getElementById('resp-empty').style.display  = 'none';
   document.getElementById('resp-topbar').style.display = '';
   document.getElementById('resp-ai').classList.remove('visible');
+  const desiredTab = preferredTab || State.activeResponseTab || 'body';
 
   const tb = document.getElementById('resp-topbar');
   const preview = document.getElementById('resp-preview');
@@ -796,6 +894,7 @@ function renderResponse(resp) {
     document.getElementById('resp-out').style.display   = 'none';
     preview.style.display = 'none';
     document.getElementById('resp-hdrs').style.display  = 'none';
+    document.getElementById('resp-tests').style.display = 'none';
     document.getElementById('resp-ai').style.display    = 'none';
 
     const errEl = document.getElementById('resp-error');
@@ -808,6 +907,7 @@ function renderResponse(resp) {
       <span class="status-pill s4">0 Connection Error</span>
       <span id="resp-meta">${resp.elapsed_ms || 0}ms</span>
       <span class="resp-exec-mode ${esc(resp.execution_mode || 'proxy')}">${esc((resp.execution_mode || 'proxy').toUpperCase())}</span>`;
+    State.activeResponseTab = 'body';
     return;
   }
 
@@ -834,9 +934,10 @@ function renderResponse(resp) {
     <span id="resp-meta">${resp.elapsed_ms}ms · ${size}</span>
     <span class="resp-exec-mode ${esc(resp.execution_mode || 'proxy')}">${esc((resp.execution_mode || 'proxy').toUpperCase())}</span>
     <div id="resp-tab-list">
-      <span class="rtab active" data-rt="body">Body</span>
+      <span class="rtab" data-rt="body">Body</span>
       <span class="rtab" data-rt="preview">Preview</span>
       <span class="rtab" data-rt="headers">Headers</span>
+      <span class="rtab" data-rt="tests">Tests</span>
       <span class="rtab" data-rt="ai">AI</span>
     </div>
     <button id="analyze-btn">Analyze with AI</button>
@@ -865,15 +966,19 @@ function renderResponse(resp) {
     `<div class="rh-row"><span class="rh-key">${esc(k)}</span><span class="rh-val">${esc(String(v))}</span></div>`
   ).join('');
 
+  renderResponseTests(resp);
   // AI panel hidden by default
   document.getElementById('resp-ai').style.display = 'none';
+  switchRespTab(desiredTab);
 }
 
 function switchRespTab(rt) {
+  State.activeResponseTab = rt;
   document.querySelectorAll('.rtab').forEach(t => t.classList.toggle('active', t.dataset.rt === rt));
   document.getElementById('resp-out').style.display   = rt==='body'    ? '' : 'none';
   document.getElementById('resp-preview').style.display = rt==='preview' ? '' : 'none';
   document.getElementById('resp-hdrs').style.display  = rt==='headers' ? '' : 'none';
+  document.getElementById('resp-tests').style.display = rt==='tests' ? '' : 'none';
   const aiEl = document.getElementById('resp-ai');
   if (rt === 'ai') {
     aiEl.style.display = '';
@@ -882,6 +987,47 @@ function switchRespTab(rt) {
     aiEl.style.display = 'none';
     aiEl.classList.remove('visible');
   }
+}
+
+function renderResponseTests(resp) {
+  const testsEl = document.getElementById('resp-tests');
+  if (!testsEl) return;
+  const tests = Array.isArray(resp?.tests) ? resp.tests : [];
+  const logs = Array.isArray(resp?.postscript_logs) ? resp.postscript_logs : [];
+  const err = resp?.postscript_error || '';
+  const pass = tests.filter(test => test.passed).length;
+  const total = tests.length;
+
+  testsEl.style.display = 'none';
+  testsEl.innerHTML = `
+    <div class="tests-summary-grid">
+      <div class="tests-card">
+        <span class="tests-card-label">Assertions</span>
+        <strong>${total}</strong>
+      </div>
+      <div class="tests-card">
+        <span class="tests-card-label">Passed</span>
+        <strong>${pass}</strong>
+      </div>
+      <div class="tests-card">
+        <span class="tests-card-label">Failed</span>
+        <strong>${Math.max(0, total - pass)}</strong>
+      </div>
+    </div>
+    ${err ? `<div class="tests-runtime-error">${esc(err)}</div>` : ''}
+    ${tests.length ? `
+      <div class="tests-list">
+        ${tests.map(test => `
+          <div class="test-row ${test.passed ? 'pass' : 'fail'}">
+            <span class="test-state">${test.passed ? 'PASS' : 'FAIL'}</span>
+            <span class="test-name">${esc(test.name || 'Unnamed test')}</span>
+          </div>`).join('')}
+      </div>` : '<div class="tests-empty">No post-script tests ran for this response yet.</div>'}
+    ${logs.length ? `
+      <div class="tests-log-block">
+        <div class="tests-log-title">Script log</div>
+        ${logs.map(log => `<div class="tests-log-row ${esc(log.type || 'info')}">${esc(log.msg || '')}</div>`).join('')}
+      </div>` : ''}`;
 }
 
 function syntaxHighlight(json) {

@@ -9,6 +9,7 @@ const State = {
   currentUser: null,
   adminUsers: [],
   lastResponse: null,
+  activeResponseTab: 'body',
   aiHistory: [],
   reqPanelHeight: null, // px, null = auto
   reqPanelManual: false,
