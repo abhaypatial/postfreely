@@ -1,6 +1,6 @@
 # PostFreely v3
 
-PostFreely is a fast Postman-style API client with a browser-first runner, local-first development flow, and optional cloud mode for shared access.
+PostFreely is a fast API workspace with a browser-first runner, local-first development flow, and optional cloud mode for shared access.
 
 ## Highlights
 
@@ -64,7 +64,7 @@ Useful endpoints:
 
 - `/healthz`
 - `/api/public/config`
-- `/runner`
+- `/runner` or `/runner/`
 
 ## Hosting Direction
 

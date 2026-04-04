@@ -11,20 +11,35 @@
 
   <!-- TOPBAR -->
   <div id="topbar">
-    <div id="logo">Post<span>Freely</span></div>
-    <div id="tab-bar"></div>
-    <button id="add-tab" title="New Tab (Ctrl+T)">+</button>
-    <div class="tb-right">
-      <button class="tb-btn" id="hist-btn">History</button>
-      <button class="tb-btn" id="env-btn">Environments</button>
-      <button class="tb-btn" id="ai-config-btn">AI Config</button>
-      <button class="tb-btn" id="theme-btn">Appearance</button>
-      <button class="tb-btn" id="runner-btn">Runner</button>
-      <div id="admin-scope-wrap" style="display:none">
-        <span class="tb-meta-label">Workspace</span>
-        <select id="admin-scope-sel"></select>
+    <div id="topbar-main">
+      <div id="brand-area">
+        <div id="logo">Post<span>Freely</span></div>
+        <div id="brand-tagline">Browser-native API workspace</div>
       </div>
-      <button id="user-btn">Sign In</button>
+      <div id="topbar-actions">
+        <div class="tb-actions-cluster">
+          <button class="tb-btn" id="hist-btn">History</button>
+          <button class="tb-btn" id="env-btn">Environments</button>
+          <button class="tb-btn" id="ai-config-btn">AI Config</button>
+          <button class="tb-btn" id="theme-btn">Appearance</button>
+          <button class="tb-btn" id="runner-btn">Runner</button>
+        </div>
+        <div class="tb-actions-cluster tb-actions-meta">
+          <div id="admin-scope-wrap" style="display:none">
+            <span class="tb-meta-label">Workspace</span>
+            <select id="admin-scope-sel"></select>
+          </div>
+          <button id="user-btn">Sign In</button>
+        </div>
+      </div>
+    </div>
+    <div id="topbar-tabs">
+      <button class="tab-scroll-btn" id="tab-scroll-left" type="button" aria-label="Scroll tabs left">‹</button>
+      <div id="tab-bar-wrap">
+        <div id="tab-bar"></div>
+      </div>
+      <button class="tab-scroll-btn" id="tab-scroll-right" type="button" aria-label="Scroll tabs right">›</button>
+      <button id="add-tab" title="New Tab (Ctrl+T)">+</button>
     </div>
   </div>
 
@@ -412,6 +427,7 @@
     </div>
     <div class="modal-foot">
       <button class="btn-danger" id="del-coll-overview-btn">Delete Collection</button>
+      <button class="btn-ghost" id="export-coll-btn">Export JSON</button>
       <button class="btn-ghost" id="run-coll-btn">▷ Run Collection</button>
       <button class="btn-ghost" data-close-modal="coll-overview-modal">Cancel</button>
       <button class="btn-primary" id="save-coll-overview-btn">Save</button>
@@ -433,6 +449,11 @@
     <div id="custom-bg-row" style="display:none" class="field">
       <label>Image URL</label>
       <input type="text" id="custom-bg-inp" placeholder="https://example.com/bg.jpg"/>
+      <input type="file" id="custom-bg-file" accept="image/*" style="display:none"/>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button class="btn-ghost" id="custom-bg-file-btn" type="button">Upload Local Wallpaper</button>
+        <span style="font-size:11px;color:var(--text3);align-self:center">Use a hosted image URL or upload one of your cinematic wallpapers directly.</span>
+      </div>
     </div>
     <div id="custom-bg-controls" style="display:none">
       <div class="field">

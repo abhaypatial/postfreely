@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>PostFreely Runner</title>
+  <script>
+    (function () {
+      const target = `/pages/runner.html${window.location.search || ''}${window.location.hash || ''}`;
+      window.location.replace(target);
+    }());
+  </script>
+</head>
+<body style="background:#070c14;color:#edf4ff;font-family:system-ui,sans-serif;padding:24px;">
+  Redirecting to PostFreely Runner...
+  <p><a href="/pages/runner.html" style="color:#59efca;">Open runner manually</a></p>
+</body>
+</html>

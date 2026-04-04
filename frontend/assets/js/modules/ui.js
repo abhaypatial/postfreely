@@ -1,6 +1,45 @@
 /* PostFreely — UI Rendering */
 
 // ── Tabs ──────────────────────────────────────────────────────
+function tabStripWrap() {
+  return document.getElementById('tab-bar-wrap') || document.getElementById('tab-bar');
+}
+
+function syncTabScrollButtons() {
+  const wrap = tabStripWrap();
+  const left = document.getElementById('tab-scroll-left');
+  const right = document.getElementById('tab-scroll-right');
+  if (!wrap || !left || !right) return;
+  const canScroll = wrap.scrollWidth > wrap.clientWidth + 8;
+  left.style.display = canScroll ? '' : 'none';
+  right.style.display = canScroll ? '' : 'none';
+  left.disabled = wrap.scrollLeft <= 4;
+  right.disabled = wrap.scrollLeft + wrap.clientWidth >= wrap.scrollWidth - 4;
+}
+
+function scrollTabsBy(delta) {
+  const wrap = tabStripWrap();
+  if (!wrap) return;
+  wrap.scrollBy({ left: delta, behavior: 'smooth' });
+  setTimeout(syncTabScrollButtons, 220);
+}
+
+function ensureActiveTabVisible() {
+  const wrap = tabStripWrap();
+  const active = document.querySelector('#tab-bar .tab.active');
+  if (!wrap || !active) return;
+  const wrapLeft = wrap.scrollLeft;
+  const wrapRight = wrapLeft + wrap.clientWidth;
+  const tabLeft = active.offsetLeft;
+  const tabRight = tabLeft + active.offsetWidth;
+  if (tabLeft < wrapLeft + 12) {
+    wrap.scrollTo({ left: Math.max(0, tabLeft - 18), behavior: 'smooth' });
+  } else if (tabRight > wrapRight - 12) {
+    wrap.scrollTo({ left: tabRight - wrap.clientWidth + 18, behavior: 'smooth' });
+  }
+  setTimeout(syncTabScrollButtons, 220);
+}
+
 function renderTabs() {
   const bar = document.getElementById('tab-bar');
   bar.innerHTML = '';
@@ -18,6 +57,10 @@ function renderTabs() {
       switchTab(tab.id);
     });
     bar.appendChild(el);
+  });
+  requestAnimationFrame(() => {
+    ensureActiveTabVisible();
+    syncTabScrollButtons();
   });
 }
 

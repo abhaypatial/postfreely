@@ -193,6 +193,12 @@ function normalizeRequestExecution(request) {
   return request;
 }
 
+function openRunnerStudio(collectionId = '') {
+  const url = new URL('/runner/', window.location.origin);
+  if (collectionId) url.searchParams.set('cid', collectionId);
+  window.open(url.toString(), '_blank');
+}
+
 function currentTabVariables(tab) {
   return State.variablesFor(tab?.collectionId || null).merged;
 }
@@ -380,6 +386,7 @@ async function boot() {
       syncRequestEditors();
       if (State.reqPanelManual) applyStoredRequestPanelHeight();
       else fitRequestPanelToContent(true);
+      if (typeof syncTabScrollButtons === 'function') syncTabScrollButtons();
     });
     window.addEventListener('postfreely-auth-required', event => {
       const detail = event.detail || {};
@@ -464,8 +471,11 @@ function wireUI() {
   document.getElementById('env-btn').addEventListener('click',      () => openEnvModal());
   document.getElementById('ai-config-btn').addEventListener('click', openAIConfig);
   document.getElementById('theme-btn').addEventListener('click',    openThemeModal);
-  document.getElementById('runner-btn').addEventListener('click',   () => window.open('/runner','_blank'));
+  document.getElementById('runner-btn').addEventListener('click',   () => openRunnerStudio());
   document.getElementById('user-btn').addEventListener('click',     openSignIn);
+  document.getElementById('tab-scroll-left').addEventListener('click', () => scrollTabsBy(-220));
+  document.getElementById('tab-scroll-right').addEventListener('click', () => scrollTabsBy(220));
+  document.getElementById('tab-bar-wrap').addEventListener('scroll', syncTabScrollButtons);
   document.getElementById('admin-scope-sel').addEventListener('change', e => {
     API.setViewOwnerId(e.target.value || '');
   });
@@ -587,13 +597,14 @@ function wireUI() {
   // Collection overview save/delete
   document.getElementById('save-coll-overview-btn').addEventListener('click', saveCollectionOverview);
   document.getElementById('del-coll-overview-btn').addEventListener('click', deleteCollectionFromOverview);
+  document.getElementById('export-coll-btn').addEventListener('click', exportCollectionFromOverview);
   document.getElementById('add-colvar-btn').addEventListener('click', () => {
     addColVarRow(document.getElementById('coll-vars-list'), '', '');
   });
   document.getElementById('run-coll-btn').addEventListener('click', () => {
     if (!_overviewColId) return;
     closeAll();
-    window.open(`/runner?cid=${_overviewColId}`, '_blank');
+    openRunnerStudio(_overviewColId);
   });
 
   // Generate modal

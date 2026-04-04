@@ -393,25 +393,54 @@ async function deleteCollectionFromOverview() {
   closeAll();
 }
 
+function exportCollectionFromOverview() {
+  const col = State.collections[_overviewColId];
+  if (!col) return;
+  const payload = {
+    ...col,
+    exported_at: new Date().toISOString(),
+    format: 'postfreely-collection',
+    version: 1,
+  };
+  const fileName = `${String(col.name || 'collection').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'collection'}.postfreely.json`;
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 500);
+  showToast(`Exported ${col.name}`);
+}
+
 // ── THEME ─────────────────────────────────────────────────────
 const THEMES = [
-  { id:'graphite',  name:'Graphite Pulse', colors:['#0a0f17','#56f1cb','#79a7ff'], desc:'deep glass, electric aqua, crisp blue' },
-  { id:'calm',      name:'Calm Tide',      colors:['#eef7f6','#1a9088','#8fc6ff'], desc:'soft seafoam, relaxed depth, clean light' },
-  { id:'aurora',    name:'Aurora Night',   colors:['#0a1022','#7d8dff','#5ef0df'], desc:'indigo glow, violet air, cinematic calm' },
-  { id:'vibrant',   name:'Vibrant Bloom',  colors:['#1a0d1f','#ff7a6b','#ffcf7d'], desc:'bold coral, neon bloom, playful energy' },
-  { id:'ember',     name:'Ember Mist',     colors:['#1a1110','#ffb36b','#ff7f7c'], desc:'warm dusk, copper light, rich contrast' },
-  { id:'porcelain', name:'Porcelain Luxe', colors:['#f8f4ff','#7a6bff','#f4a0c8'], desc:'premium paper, polished violet, airy glow' },
+  { id:'graphite',  name:'Signal Black',  colors:['#0a0f17','#56f1cb','#79a7ff'], desc:'deep control room glass with cold electric highlights' },
+  { id:'calm',      name:'Studio Mist',   colors:['#eef7f6','#1a9088','#8fc6ff'], desc:'minimal daylight surface, soft edges, clean focus' },
+  { id:'aurora',    name:'Aurora Core',   colors:['#0a1022','#7d8dff','#5ef0df'], desc:'cinematic indigo shell with luminous cool accents' },
+  { id:'ember',     name:'Solar Ember',   colors:['#1a1110','#ffb36b','#ff7f7c'], desc:'amber heat, ash shadows, premium contrast' },
+  { id:'porcelain', name:'Porcelain Air', colors:['#f8f4ff','#7a6bff','#f4a0c8'], desc:'bright editorial palette with restrained color lift' },
+  { id:'monolith',  name:'Monolith',      colors:['#0b1014','#ff6a3d','#6b7c88'], desc:'fog, basalt, and a single architectural glow line' },
+  { id:'chrome',    name:'Chrome Veil',   colors:['#cdd2d6','#30363d','#ffffff'], desc:'liquid metal minimalism with polished silver depth' },
+  { id:'eclipse',   name:'Eclipse Ring',  colors:['#050607','#ffb15f','#3b434d'], desc:'black stage, warm halo, and mirror-like quiet' },
+  { id:'cathedral', name:'Cathedral Fog', colors:['#f1f2ee','#55595f','#adb4bb'], desc:'monumental grayscale light with serene clarity' },
+  { id:'scarlet',   name:'Scarlet Field', colors:['#120304','#ff2c2c','#731313'], desc:'velvet red horizon with cinematic danger' },
 ];
 
 const BG_PRESETS = [
   { id:'none',     name:'None',        css:'' },
-  { id:'gradient1',name:'Neon Veil',   css:'linear-gradient(135deg,#081321 0%,#1b1441 36%,#0f4154 72%,#08121a 100%)' },
-  { id:'gradient2',name:'Calm Tide',   css:'linear-gradient(135deg,#e1f8f2 0%,#d9ebff 45%,#fafcff 100%)' },
-  { id:'gradient3',name:'Sunset Bloom',css:'linear-gradient(135deg,#2b1230 0%,#6d2742 38%,#c76c61 72%,#f5c585 100%)' },
-  { id:'gradient4',name:'Botanic Mist',css:'linear-gradient(135deg,#071814 0%,#124337 36%,#0c6a58 72%,#6bd6cb 100%)' },
-  { id:'mesh',     name:'Aurora Haze', css:'radial-gradient(circle at 12% 18%,rgba(0,229,160,.22) 0%,transparent 30%),radial-gradient(circle at 82% 14%,rgba(92,164,255,.24) 0%,transparent 34%),radial-gradient(circle at 58% 78%,rgba(180,127,255,.18) 0%,transparent 34%),linear-gradient(135deg,#0a1024 0%,#1f1848 48%,#091521 100%)' },
-  { id:'dots',     name:'Studio Grid', css:'linear-gradient(135deg,#09111d 0%,#10192a 100%),repeating-linear-gradient(0deg,rgba(255,255,255,.04) 0px,rgba(255,255,255,.04) 1px,transparent 1px,transparent 40px),repeating-linear-gradient(90deg,rgba(255,255,255,.04) 0px,rgba(255,255,255,.04) 1px,transparent 1px,transparent 40px)' },
-  { id:'halo',     name:'Halo Dream',  css:'radial-gradient(circle at 18% 20%,rgba(255,255,255,.20) 0%,transparent 18%),radial-gradient(circle at 76% 24%,rgba(92,164,255,.30) 0%,transparent 22%),radial-gradient(circle at 82% 82%,rgba(255,127,124,.20) 0%,transparent 18%),linear-gradient(135deg,#0a1128 0%,#281b52 48%,#7a3454 100%)' },
+  { id:'gradient1',name:'Midnight Grid', css:'linear-gradient(135deg,#081321 0%,#162338 42%,#0f4154 76%,#08121a 100%)' },
+  { id:'gradient2',name:'Soft Concrete', css:'linear-gradient(135deg,#eef1ef 0%,#dce2e6 50%,#f6f7f8 100%)' },
+  { id:'chrome-wave',name:'Chrome Wave', css:'radial-gradient(circle at 18% 58%,rgba(5,5,5,.92) 0%,rgba(5,5,5,.92) 14%,transparent 26%),linear-gradient(180deg,#bcc2c5 0%,#eceff1 18%,#545a5f 38%,#ffffff 52%,#43484d 66%,#d0d4d7 78%,#f4f5f6 100%)' },
+  { id:'obsidian-gate',name:'Obsidian Gate', css:'radial-gradient(circle at 50% 58%,rgba(255,108,69,.78) 0%,rgba(255,108,69,.48) 8%,transparent 12%),linear-gradient(90deg,transparent 0 38%,rgba(19,20,23,.96) 38% 47%,transparent 47% 53%,rgba(19,20,23,.96) 53% 62%,transparent 62% 100%),linear-gradient(180deg,#222528 0%,#1a1b1d 34%,#334246 100%)' },
+  { id:'mist-arch',name:'Mist Arch', css:'radial-gradient(circle at 50% 16%,rgba(255,255,255,.94) 0%,rgba(255,255,255,.68) 10%,transparent 22%),linear-gradient(90deg,#1a1b1d 0%,#2b2d31 16%,transparent 16% 84%,#2b2d31 84%,#1a1b1d 100%),linear-gradient(180deg,#d7dbde 0%,#bec5c9 30%,#9ea6aa 100%)' },
+  { id:'solar-threshold',name:'Solar Threshold', css:'radial-gradient(circle at 50% 72%,rgba(255,190,98,.98) 0%,rgba(255,157,66,.85) 16%,transparent 18%),linear-gradient(180deg,#040506 0%,#050505 54%,#191510 55%,#0d0d0d 100%)' },
+  { id:'scarlet-clouds',name:'Scarlet Clouds', css:'radial-gradient(circle at 72% 56%,rgba(255,144,76,.42) 0%,transparent 20%),linear-gradient(180deg,#dd2024 0%,#d6282d 40%,#ab141d 70%,#7b0811 100%),radial-gradient(circle at 28% 74%,rgba(64,0,0,.22) 0%,transparent 24%)' },
+  { id:'desert-sun',name:'Desert Sun', css:'radial-gradient(circle at 50% 52%,rgba(255,186,61,.94) 0%,rgba(255,150,51,.88) 16%,transparent 18%),linear-gradient(180deg,#6c1218 0%,#932125 38%,#6e2a1c 58%,#2b1010 100%)' },
+  { id:'oracle-violet',name:'Oracle Violet', css:'radial-gradient(circle at 63% 24%,rgba(185,130,255,.85) 0%,rgba(185,130,255,.38) 14%,transparent 18%),radial-gradient(circle at 65% 24%,rgba(255,255,255,.85) 0%,rgba(255,255,255,.0) 42%),linear-gradient(135deg,#090b12 0%,#18132f 42%,#100f23 100%)' },
+  { id:'blind-justice',name:'Blind Justice', css:'radial-gradient(circle at 78% 22%,rgba(212,170,111,.38) 0%,transparent 22%),radial-gradient(circle at 78% 22%,rgba(255,255,255,.22) 0%,transparent 38%),linear-gradient(135deg,#050608 0%,#121823 42%,#0a0f16 100%)' },
   { id:'custom',   name:'Custom URL',  css:'' },
 ];
 
@@ -458,6 +487,17 @@ function syncCustomBackgroundInput(rawUrl) {
   setThemeBackgroundSelection('custom');
   toggleCustomBackgroundControls(true);
   applyBackground('custom', value);
+}
+
+function loadCustomBackgroundFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const dataUrl = String(reader.result || '');
+    document.getElementById('custom-bg-inp').value = dataUrl;
+    syncCustomBackgroundInput(dataUrl);
+  };
+  reader.readAsDataURL(file);
 }
 
 function applyBackgroundFrame(size, posX, posY) {
@@ -574,6 +614,13 @@ function openThemeModal() {
 
   document.getElementById('custom-bg-inp').oninput = e => {
     syncCustomBackgroundInput(e.target.value);
+  };
+  document.getElementById('custom-bg-file-btn').onclick = () => {
+    document.getElementById('custom-bg-file').click();
+  };
+  document.getElementById('custom-bg-file').onchange = e => {
+    loadCustomBackgroundFile(e.target.files?.[0]);
+    e.target.value = '';
   };
 
   document.getElementById('bg-fit-sel').onchange = e => {
