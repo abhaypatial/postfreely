@@ -301,6 +301,9 @@ function renderEnvStrip() {
     if (env.id === activeId) opt.selected = true;
     sel.appendChild(opt);
   });
+  
+  sel.insertAdjacentHTML('beforeend', '<option disabled>──────────</option><option value="__new__">+ Create New Environment</option><option value="__manage__">⚙ Manage Variables...</option>');
+  if (activeId) sel.value = activeId;
 
   const activeTab = State.getTab(State.activeTab);
   renderVariablesPanel(activeTab?.collectionId || null);
@@ -482,7 +485,7 @@ function setSidebarCollapsed(collapsed, persist = true) {
   const workspace = document.getElementById('workspace');
   if (!sidebar || !workspace) return;
   sidebar.classList.toggle('collapsed', collapsed);
-  workspace.classList.toggle('sidebar-collapsed', collapsed);
+  document.body.classList.toggle('sidebar-collapsed', collapsed);
   if (persist && typeof scheduleWorkspacePersist === 'function') scheduleWorkspacePersist();
 }
 

@@ -470,7 +470,6 @@ function wireUI() {
 
   // Toolbar buttons
   document.getElementById('hist-btn').addEventListener('click',     openHistory);
-  document.getElementById('env-btn').addEventListener('click',      () => openEnvModal());
   document.getElementById('ai-config-btn').addEventListener('click', openAIConfig);
   document.getElementById('theme-btn').addEventListener('click',    openThemeModal);
   document.getElementById('runner-btn').addEventListener('click',   () => openRunnerStudio());
@@ -539,6 +538,17 @@ function wireUI() {
   // Environment selector
   document.getElementById('env-sel').addEventListener('change', async e => {
     const id = e.target.value;
+    if (id === '__new__') {
+      e.target.value = State.environments.active || '';
+      createNewEnv();
+      return;
+    }
+    if (id === '__manage__') {
+      e.target.value = State.environments.active || '';
+      openEnvModal();
+      return;
+    }
+
     State.environments.active = id || null;
     if (id) await API.activateEnvironment(id);
     renderEnvStrip();
@@ -546,12 +556,6 @@ function wireUI() {
     showToast(id ? `Env: ${(State.environments.envs||{})[id]?.name || id}` : 'No environment');
     scheduleWorkspacePersist();
   });
-
-  // Edit env link
-  document.getElementById('edit-env-btn').addEventListener('click', () => openEnvModal());
-
-  // New env button
-  document.getElementById('new-env-btn').addEventListener('click', createNewEnv);
 
   // Sidebar collapse
   document.getElementById('sidebar-toggle').addEventListener('click', () => {
