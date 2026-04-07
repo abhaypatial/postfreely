@@ -531,6 +531,19 @@ function applyBackgroundEffects(blur, bokeh) {
 }
 
 function openThemeModal() {
+  const win = document.getElementById('theme-modal');
+  win.querySelectorAll('.ts-tab').forEach(tab => {
+    tab.onclick = () => {
+      win.querySelectorAll('.ts-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      win.querySelectorAll('.ts-pane').forEach(p => p.classList.remove('active'));
+      const target = document.getElementById(tab.dataset.target);
+      if (target) target.classList.add('active');
+    };
+  });
+  const firstTab = win.querySelector('.ts-tab');
+  if (firstTab) firstTab.click();
+
   const cur = normalizeThemeId(State.settings.theme || 'dark');
   const curBg = State.settings.background || 'none';
   const curFit = bgSetting('bg_size', 'cover');
@@ -544,8 +557,10 @@ function openThemeModal() {
   tgrid.innerHTML = THEMES.map(t => `
     <div class="theme-card ${t.id===cur?'sel':''}" data-theme="${t.id}">
       <div class="theme-swatch" style="background:linear-gradient(135deg,${t.colors[0]} 0%,${t.colors[1]} 100%)"></div>
-      <span class="theme-card-name">${t.name}</span>
-      <small>${t.desc}</small>
+      <div class="theme-card-content">
+        <span class="theme-card-name">${t.name}</span>
+        <small>${t.desc}</small>
+      </div>
     </div>`).join('');
   tgrid.querySelectorAll('.theme-card').forEach(c =>
     c.addEventListener('click', () => {

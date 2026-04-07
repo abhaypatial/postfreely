@@ -437,64 +437,96 @@
 
 <!-- THEME -->
 <div class="overlay" id="theme-modal">
-  <div class="modal" style="width:640px">
-    <div class="modal-hd">
-      <h2>◑ <span>Theme &amp; Appearance</span></h2>
-      <button class="modal-close" data-close-modal="theme-modal">×</button>
-    </div>
-    <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.6px">Theme Mood</div>
-    <div class="theme-grid" id="theme-grid"></div>
-    <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.6px">Wallpaper</div>
-    <div class="bg-grid" id="bg-grid"></div>
-    <div id="custom-bg-row" style="display:none" class="field">
-      <label>Image URL</label>
-      <input type="text" id="custom-bg-inp" placeholder="https://example.com/bg.jpg"/>
-      <input type="file" id="custom-bg-file" accept="image/*" style="display:none"/>
-      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-        <button class="btn-ghost" id="custom-bg-file-btn" type="button">Upload Local Wallpaper</button>
-        <span style="font-size:11px;color:var(--text3);align-self:center">Use a hosted image URL or upload one of your cinematic wallpapers directly.</span>
+  <div class="modal theme-settings-window" style="padding:0; overflow:hidden;">
+    <div class="theme-sidebar">
+      <div class="modal-hd" style="margin-bottom:12px;">
+        <h2>◑ <span>Appearance</span></h2>
+      </div>
+      <div class="ts-tabs">
+        <button class="ts-tab active" data-target="ts-pane-themes">Colors & Mood</button>
+        <button class="ts-tab" data-target="ts-pane-wallpapers">Wallpapers</button>
+        <button class="ts-tab" data-target="ts-pane-vfx">Visual Effects</button>
       </div>
     </div>
-    <div id="custom-bg-controls" style="display:none">
-      <div class="field">
-        <label>Image Fit</label>
-        <select id="bg-fit-sel">
-          <option value="cover">Cover</option>
-          <option value="contain">Contain</option>
-          <option value="100% auto">Width First</option>
-          <option value="auto 100%">Height First</option>
-        </select>
+    
+    <div class="theme-content">
+      <button class="modal-close" data-close-modal="theme-modal" style="position:absolute; top:18px; right:18px; z-index:10;">×</button>
+      
+      <div class="ts-pane active" id="ts-pane-themes">
+        <div class="ts-pane-hd">
+          <h3>Themes</h3>
+          <p>Select a core color palette and mood.</p>
+        </div>
+        <div class="theme-grid" id="theme-grid"></div>
       </div>
-      <div class="field">
-        <label>Image Focus X <span id="bg-pos-x-val">50%</span></label>
-        <input type="range" id="bg-pos-x-inp" min="0" max="100" step="1" value="50"/>
+
+      <div class="ts-pane" id="ts-pane-wallpapers">
+        <div class="ts-pane-hd">
+          <h3>Wallpapers</h3>
+          <p>Choose a cinematic background or upload your own.</p>
+        </div>
+        <div class="bg-grid" id="bg-grid"></div>
+        
+        <div id="custom-bg-row" style="display:none; margin-top:20px;" class="field">
+          <label>Custom Image URL</label>
+          <input type="text" id="custom-bg-inp" placeholder="https://example.com/bg.jpg"/>
+          <input type="file" id="custom-bg-file" accept="image/*" style="display:none"/>
+          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+            <button class="btn-ghost" id="custom-bg-file-btn" type="button">Upload Local</button>
+          </div>
+        </div>
+        <div id="custom-bg-controls" style="display:none; margin-top:12px;">
+          <div class="field">
+            <label>Image Fit</label>
+            <select id="bg-fit-sel">
+              <option value="cover">Cover</option>
+              <option value="contain">Contain</option>
+              <option value="100% auto">Width First</option>
+              <option value="auto 100%">Height First</option>
+            </select>
+          </div>
+          <div class="theme-effect-grid">
+            <div class="field">
+              <label>Image Focus X <span id="bg-pos-x-val">50%</span></label>
+              <input type="range" id="bg-pos-x-inp" min="0" max="100" step="1" value="50"/>
+            </div>
+            <div class="field">
+              <label>Image Focus Y <span id="bg-pos-y-val">50%</span></label>
+              <input type="range" id="bg-pos-y-inp" min="0" max="100" step="1" value="50"/>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="field">
-        <label>Image Focus Y <span id="bg-pos-y-val">50%</span></label>
-        <input type="range" id="bg-pos-y-inp" min="0" max="100" step="1" value="50"/>
+
+      <div class="ts-pane" id="ts-pane-vfx">
+        <div class="ts-pane-hd">
+          <h3>Visual Effects</h3>
+          <p>Fine-tune typography, glassmorphism, and lighting.</p>
+        </div>
+        <div class="field" style="margin-bottom:24px;">
+          <label>Font Size - <span id="font-size-val">13px</span></label>
+          <input type="range" id="font-size-inp" min="11" max="18" step="1" value="13"/>
+        </div>
+        <div class="field" style="margin-bottom:24px;">
+          <label>Background Opacity — <span id="bg-opacity-val">18%</span></label>
+          <input type="range" id="bg-opacity-inp" min="0" max="100" step="1" value="18"/>
+        </div>
+        <div class="theme-effect-grid">
+          <div class="field">
+            <label>Wallpaper Blur - <span id="bg-blur-val">0px</span></label>
+            <input type="range" id="bg-blur-inp" min="0" max="32" step="1" value="0"/>
+          </div>
+          <div class="field">
+            <label>Bokeh Glow - <span id="bg-bokeh-val">16%</span></label>
+            <input type="range" id="bg-bokeh-inp" min="0" max="100" step="1" value="16"/>
+          </div>
+        </div>
       </div>
-    </div>
-    <div class="field">
-      <label>Background Opacity — <span id="bg-opacity-val">18%</span></label>
-      <input type="range" id="bg-opacity-inp" min="0" max="100" step="1" value="18"/>
-    </div>
-    <div class="theme-effect-grid">
-      <div class="field">
-        <label>Wallpaper Blur - <span id="bg-blur-val">0px</span></label>
-        <input type="range" id="bg-blur-inp" min="0" max="32" step="1" value="0"/>
+
+      <div class="ts-footer">
+        <button class="btn-ghost" data-close-modal="theme-modal">Cancel</button>
+        <button class="btn-primary" id="save-theme-btn">Save Theme</button>
       </div>
-      <div class="field">
-        <label>Bokeh Glow - <span id="bg-bokeh-val">16%</span></label>
-        <input type="range" id="bg-bokeh-inp" min="0" max="100" step="1" value="16"/>
-      </div>
-    </div>
-    <div class="field">
-      <label>Font Size - <span id="font-size-val">13px</span></label>
-      <input type="range" id="font-size-inp" min="11" max="18" step="1" value="13"/>
-    </div>
-    <div class="modal-foot">
-      <button class="btn-ghost" data-close-modal="theme-modal">Cancel</button>
-      <button class="btn-primary" id="save-theme-btn">Save Theme</button>
     </div>
   </div>
 </div>
