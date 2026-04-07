@@ -674,10 +674,12 @@ async function doSend() {
   showLoadbar(true);
 
   try {
+    const reqPayload = requestPayloadForExecution(tab);
     const result = await API.executeExternalRequest(
-      requestPayloadForExecution(tab),
+      reqPayload,
       { variables: currentTabVariables(tab), saveHistory: true }
     );
+    result.request_sent = reqPayload;
     if (result?.error && result.status_code == null) throw new Error(result.error);
 
     tab.browserCompatibility = API.mergeCompatibility(tab.browserCompatibility, result.browser_compatibility);

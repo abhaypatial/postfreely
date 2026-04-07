@@ -872,6 +872,7 @@ function showRespEmpty() {
   document.getElementById('resp-out').style.display   = 'none';
   document.getElementById('resp-preview').style.display = 'none';
   document.getElementById('resp-hdrs').style.display  = 'none';
+  document.getElementById('resp-request').style.display = 'none';
   document.getElementById('resp-tests').style.display = 'none';
   document.getElementById('resp-error').style.display = 'none';
   document.getElementById('resp-ai').classList.remove('visible');
@@ -900,6 +901,7 @@ function renderResponse(resp, preferredTab = '') {
     document.getElementById('resp-out').style.display   = 'none';
     preview.style.display = 'none';
     document.getElementById('resp-hdrs').style.display  = 'none';
+    document.getElementById('resp-request').style.display = 'none';
     document.getElementById('resp-tests').style.display = 'none';
     document.getElementById('resp-ai').style.display    = 'none';
 
@@ -945,6 +947,7 @@ function renderResponse(resp, preferredTab = '') {
       <span class="rtab" data-rt="body">Body</span>
       <span class="rtab" data-rt="preview">Preview</span>
       <span class="rtab" data-rt="headers">Headers</span>
+      <span class="rtab" data-rt="request">Request</span>
       <span class="rtab" data-rt="tests">Tests</span>
       <span class="rtab" data-rt="ai">AI</span>
     </div>
@@ -974,6 +977,23 @@ function renderResponse(resp, preferredTab = '') {
     `<div class="rh-row"><span class="rh-key">${esc(k)}</span><span class="rh-val">${esc(String(v))}</span></div>`
   ).join('');
 
+  // Request
+  const reqv = document.getElementById('resp-request');
+  reqv.style.display = 'none';
+  if (resp.request_sent) {
+    const r = resp.request_sent;
+    reqv.innerHTML = `<div class="preview-grid" style="margin-bottom:12px">
+      <div class="preview-card"><div class="preview-card-label">Method</div><div class="preview-card-value">${esc(r.method)}</div></div>
+      <div class="preview-card" style="flex:2;"><div class="preview-card-label">URL</div><div class="preview-card-value" style="word-break:break-all;">${esc(r.url)}</div></div>
+    </div>
+    <div style="font-size:12px;color:var(--text);margin-bottom:8px;font-weight:600;">Headers Sent</div>
+    ${(r.headers||[]).length ? r.headers.map(h => `<div class="rh-row"><span class="rh-key">${esc(h[0])}</span><span class="rh-val">${esc(h[1])}</span></div>`).join('') : '<div class="rh-row"><span style="color:var(--text3)">None</span></div>'}
+    <div style="font-size:12px;color:var(--text);margin-top:16px;margin-bottom:8px;font-weight:600;">Body Sent</div>
+    <pre style="background:var(--bg3);padding:10px;border-radius:6px;overflow:auto;font-family:monospace;font-size:11.5px;color:var(--text2);margin:0;">${esc(r.body || '(no body)')}</pre>`;
+  } else {
+    reqv.innerHTML = '<div style="padding:20px;color:var(--text3);text-align:center;">Request payload not available.</div>';
+  }
+
   renderResponseTests(resp);
   // AI panel hidden by default
   document.getElementById('resp-ai').style.display = 'none';
@@ -986,6 +1006,7 @@ function switchRespTab(rt) {
   document.getElementById('resp-out').style.display   = rt==='body'    ? 'block' : 'none';
   document.getElementById('resp-preview').style.display = rt==='preview' ? 'block' : 'none';
   document.getElementById('resp-hdrs').style.display  = rt==='headers' ? 'block' : 'none';
+  document.getElementById('resp-request').style.display  = rt==='request' ? 'block' : 'none';
   document.getElementById('resp-tests').style.display = rt==='tests' ? 'block' : 'none';
   const aiEl = document.getElementById('resp-ai');
   if (rt === 'ai') {
@@ -1190,6 +1211,7 @@ function initResizeHandle() {
   let startY, startH;
 
   handle.addEventListener('mousedown', e => {
+    e.preventDefault();
     startY = e.clientY;
     startH = reqPanel.offsetHeight;
     document.addEventListener('mousemove', onMove);
