@@ -289,7 +289,7 @@ function readAuth() {
 // ── ENV strip ─────────────────────────────────────────────────
 function renderEnvStrip() {
   const sel  = document.getElementById('env-sel');
-  const prev = document.getElementById('env-vars-preview');
+  if (!sel) return;
   const envs = State.environments.envs || {};
   const activeId = State.environments.active;
 
@@ -302,10 +302,6 @@ function renderEnvStrip() {
     sel.appendChild(opt);
   });
 
-  // Preview vars
-  const vars = State.activeEnvVars();
-  const keys = Object.keys(vars).filter(k => vars[k]);
-  prev.textContent = keys.length ? keys.map(k=>`{{${k}}}`).join('  ') : '';
   const activeTab = State.getTab(State.activeTab);
   renderVariablesPanel(activeTab?.collectionId || null);
   updateSubTabCounts();
@@ -414,7 +410,7 @@ function getRequestPanelBounds() {
   const panel = document.getElementById('req-panel');
   if (!panel) return { min: 118, max: Math.max(220, Math.floor(window.innerHeight * 0.46)) };
 
-  const chromeIds = ['env-strip', 'url-bar', 'req-subtabs', 'resize-handle'];
+  const chromeIds = ['url-bar', 'req-subtabs', 'resize-handle'];
   const chrome = chromeIds.reduce((sum, id) => sum + (document.getElementById(id)?.offsetHeight || 0), 0);
   const available = panel.clientHeight - chrome;
   const min = 118;
@@ -964,7 +960,7 @@ function renderResponse(resp, preferredTab = '') {
 
   // Body
   const out = document.getElementById('resp-out');
-  out.style.display = '';
+  out.style.display = 'block';
   out.innerHTML = resp.is_json ? syntaxHighlight(resp.body) : esc(resp.body);
   renderResponsePreview(resp);
 
@@ -984,13 +980,13 @@ function renderResponse(resp, preferredTab = '') {
 function switchRespTab(rt) {
   State.activeResponseTab = rt;
   document.querySelectorAll('.rtab').forEach(t => t.classList.toggle('active', t.dataset.rt === rt));
-  document.getElementById('resp-out').style.display   = rt==='body'    ? '' : 'none';
-  document.getElementById('resp-preview').style.display = rt==='preview' ? '' : 'none';
-  document.getElementById('resp-hdrs').style.display  = rt==='headers' ? '' : 'none';
-  document.getElementById('resp-tests').style.display = rt==='tests' ? '' : 'none';
+  document.getElementById('resp-out').style.display   = rt==='body'    ? 'block' : 'none';
+  document.getElementById('resp-preview').style.display = rt==='preview' ? 'block' : 'none';
+  document.getElementById('resp-hdrs').style.display  = rt==='headers' ? 'block' : 'none';
+  document.getElementById('resp-tests').style.display = rt==='tests' ? 'block' : 'none';
   const aiEl = document.getElementById('resp-ai');
   if (rt === 'ai') {
-    aiEl.style.display = '';
+    aiEl.style.display = 'flex';
     aiEl.classList.add('visible');
   } else {
     aiEl.style.display = 'none';

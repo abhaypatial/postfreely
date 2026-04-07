@@ -34,12 +34,23 @@
       </div>
     </div>
     <div id="topbar-tabs">
+      <button id="sidebar-reopen" title="Show collections" style="margin:0 4px 0 8px; height:24px; padding:0 8px;">
+        <span class="sidebar-reopen-icon" style="width:14px; height:14px; font-size:11px;">+</span>
+        <span class="sidebar-reopen-label" style="font-size:9px;">Cols</span>
+      </button>
       <button class="tab-scroll-btn" id="tab-scroll-left" type="button" aria-label="Scroll tabs left">‹</button>
       <div id="tab-bar-wrap">
         <div id="tab-bar"></div>
       </div>
       <button class="tab-scroll-btn" id="tab-scroll-right" type="button" aria-label="Scroll tabs right">›</button>
       <button id="add-tab" title="New Tab (Ctrl+T)">+</button>
+      
+      <div id="env-strip-right" style="margin-left:auto; display:flex; align-items:center; gap:6px; padding:0 12px; border-left:1px solid var(--border);">
+        <span id="env-strip-label" style="font-size:9px; font-weight:700; color:var(--text3); font-family:var(--font-ui); text-transform:uppercase; letter-spacing:.8px;">ENV</span>
+        <select id="env-sel" style="background:var(--inp-bg); border:1px solid var(--border2); border-radius:5px; padding:2px 6px; color:var(--text); font-family:var(--font); font-size:10px; min-width:110px; outline:none; height:22px; cursor:pointer;"></select>
+        <button id="new-env-btn" class="tb-btn" style="padding:2px 6px; font-size:9px; height:22px;">+ New</button>
+        <button id="edit-env-btn" style="font-size:10px; color:var(--accent); background:none; border:none; cursor:pointer; font-family:var(--font);">Edit</button>
+      </div>
     </div>
   </div>
 
@@ -64,21 +75,6 @@
 
     <!-- REQUEST + RESPONSE PANEL -->
     <div id="req-panel">
-
-      <!-- ENV STRIP -->
-      <div id="env-strip">
-        <button id="sidebar-reopen" title="Show collections">
-          <span class="sidebar-reopen-icon">+</span>
-          <span class="sidebar-reopen-label">Collections</span>
-        </button>
-        <span id="env-vars-preview"></span>
-        <div id="env-strip-right">
-          <span id="env-strip-label">ENV</span>
-          <select id="env-sel"></select>
-          <button id="new-env-btn" class="tb-btn" style="padding:2px 8px;font-size:10px">+ New</button>
-          <button id="edit-env-btn">Edit</button>
-        </div>
-      </div>
 
       <!-- URL BAR -->
       <div id="url-bar">

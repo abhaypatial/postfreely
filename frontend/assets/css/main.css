@@ -461,7 +461,7 @@ button,input,select,textarea{font:inherit}
 .stab.active .cnt{background:var(--accentbg);color:var(--accent)}
 
 /* req content panels */
-#req-content{flex:0 0 auto;display:flex;flex-direction:column;overflow:hidden;padding:8px 14px 10px;background:var(--bg);height:188px;max-height:44vh;min-height:118px;transition:height .14s ease}
+#req-content{flex:0 0 auto;display:flex;flex-direction:column;overflow:hidden;padding:8px 14px 10px;background:var(--bg);height:188px;max-height:44vh;min-height:118px;}
 #req-content.collapsed{max-height:0;padding:0;overflow:hidden}
 .spanel{display:none}
 .spanel.active{display:flex;flex-direction:column;flex:1;min-height:0;overflow:auto}
