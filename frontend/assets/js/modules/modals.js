@@ -180,7 +180,11 @@ function setCollectionStudioMode(mode) {
 async function loadStudioImportFile(file) {
   if (!file) return;
   document.getElementById('studio-import-file-name').textContent = file.name;
-  document.getElementById('studio-import-ta').value = await file.text();
+  if (file.name.toLowerCase().endsWith('.zip')) {
+    document.getElementById('studio-import-ta').value = `[ZIP Archive: ${file.name}]`;
+  } else {
+    document.getElementById('studio-import-ta').value = await file.text();
+  }
 }
 
 async function doImport() {
@@ -199,8 +203,43 @@ async function doImport() {
     }
 
     if (mode === 'postman') {
+      const fileInput = document.getElementById('studio-import-file-input');
+      const file = fileInput.files?.[0];
+      if (file && file.name.toLowerCase().endsWith('.zip')) {
+        if (typeof JSZip === 'undefined') {
+          errEl.textContent = 'Zip library is not loaded.';
+          return;
+        }
+        const zip = await JSZip.loadAsync(file);
+        let importedCount = 0;
+        for (const filename of Object.keys(zip.files)) {
+          if (filename.toLowerCase().endsWith('.json') && !zip.files[filename].dir) {
+            const content = await zip.files[filename].async('string');
+            try {
+              const parsed = JSON.parse(content);
+              const res = await API.importCollection(parsed);
+              if (res && res.id) {
+                State.collections[res.id] = res;
+                importedCount++;
+              }
+            } catch (e) {
+              console.error(`Failed to import ${filename}:`, e);
+            }
+          }
+        }
+        if (importedCount === 0) {
+          errEl.textContent = 'No valid JSON collections found in zip.';
+          return;
+        }
+        renderSidebar();
+        closeAll();
+        showToast(`Imported ${importedCount} collections from ZIP`);
+        if (typeof scheduleWorkspacePersist === 'function') scheduleWorkspacePersist();
+        return;
+      }
+
       const raw = document.getElementById('studio-import-ta').value.trim();
-      if (!raw) { errEl.textContent = 'Choose a JSON file or paste collection JSON first.'; return; }
+      if (!raw) { errEl.textContent = 'Choose a JSON/ZIP file or paste collection JSON first.'; return; }
       const parsed = JSON.parse(raw);
       result = await API.importCollection(parsed);
     }

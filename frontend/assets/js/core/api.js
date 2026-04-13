@@ -73,9 +73,25 @@ function scopedBody(body, scoped = true) {
   return { ...body, owner_id: ownerId };
 }
 
+function _dynamicVariable(key) {
+  if (key === '$guid' || key === '$randomUUID') {
+    return typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() :
+      'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+        const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+  }
+  if (key === '$timestamp') return String(Math.floor(Date.now() / 1000));
+  if (key === '$isoTimestamp') return new Date().toISOString();
+  if (key === '$randomInt') return String(Math.floor(Math.random() * 1000) + 1);
+  return null;
+}
+
 function interpolateString(value, variables = {}) {
   return String(value == null ? '' : value).replace(/\{\{(.+?)\}\}/g, (_, key) => {
     const trimmed = key.trim();
+    const dyn = _dynamicVariable(trimmed);
+    if (dyn !== null) return dyn;
     return Object.prototype.hasOwnProperty.call(variables, trimmed) ? String(variables[trimmed]) : `{{${trimmed}}}`;
   });
 }

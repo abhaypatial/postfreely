@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>PostFreely</title>
 <link rel="stylesheet" href="/assets/css/main.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
 <div id="app">
@@ -320,8 +321,8 @@
       <div class="field">
         <label>JSON File</label>
         <div class="file-pick-row">
-          <input id="studio-import-file-input" type="file" accept=".json,application/json" hidden/>
-          <button class="btn-ghost" id="studio-import-file-btn" type="button">Choose JSON File</button>
+          <input id="studio-import-file-input" type="file" accept=".json,.zip,application/json,application/zip" hidden/>
+          <button class="btn-ghost" id="studio-import-file-btn" type="button">Choose JSON or ZIP</button>
           <span id="studio-import-file-name">No file selected</span>
         </div>
       </div>
