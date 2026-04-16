@@ -1118,16 +1118,8 @@ async function doSignOut() {
   }
   API.clearSession();
   API.setViewOwnerId('');
-  State.currentUser = null;
-  State.adminUsers = [];
-  updateUserUI(null);
-  renderAdminScope();
-  resetWorkspaceData();
-  closeAll();
-  showToast('Signed out');
-  if (State.publicConfig?.auth_required) {
-    openSignIn();
-  }
+  localStorage.removeItem('postfreely.workspace.v2');
+  window.location.reload();
 }
 
 function togglePasswordVisibility(targetId) {
