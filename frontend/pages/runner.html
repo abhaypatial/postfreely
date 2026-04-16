@@ -2226,9 +2226,6 @@ async function init() {
   const saved = restoreRunnerPrefs();
 
   const publicConfig = await API.getPublicConfig();
-  if (publicConfig?.auth_required && !API.getSession()?.access_token) {
-    throw new Error('Sign in from the main PostFreely app first, then reopen the runner.');
-  }
 
   const [collections, envs, settings] = await Promise.all([
     API.getCollections(),
@@ -2236,18 +2233,14 @@ async function init() {
     API.getSettings(),
   ]);
 
-  if (collections?.error) throw new Error(collections.error);
-  if (envs?.error) throw new Error(envs.error);
-  if (settings?.error) throw new Error(settings.error);
-
-  RUNNER_STATE.collections = collections || {};
+  RUNNER_STATE.collections = collections && !collections.error && typeof collections === 'object' ? collections : {};
   Object.values(RUNNER_STATE.collections).forEach(collection => {
     collection.requests = (collection.requests || []).map(normalizeRunnerRequest);
   });
-  RUNNER_STATE.envs = envs?.envs || {};
+  RUNNER_STATE.envs = envs && !envs.error && envs.envs ? envs.envs : {};
   RUNNER_STATE.manualIterations = Number(saved.manualIterations || 1) || 1;
 
-  applySettings(settings || {});
+  applySettings(settings && !settings.error ? settings : {});
 
   const collectionSelect = document.getElementById('r-coll-sel');
   collectionSelect.innerHTML = '<option value="">Select collection...</option>' +

@@ -4,11 +4,21 @@
 function openModal(id) {
   document.getElementById(id).classList.add('open');
 }
+function _checkGuestToast(id) {
+  if (id === 'signin-modal' && State.publicConfig?.auth_required && !State.currentUser) {
+    showToast("Work will not be saved without signing in.", true);
+  }
+}
+
 function closeModal(id) {
   document.getElementById(id).classList.remove('open');
+  _checkGuestToast(id);
 }
 function closeAll() {
-  document.querySelectorAll('.overlay.open').forEach(o => o.classList.remove('open'));
+  document.querySelectorAll('.overlay.open').forEach(o => {
+    o.classList.remove('open');
+    _checkGuestToast(o.id);
+  });
 }
 
 // ESC closes all modals
