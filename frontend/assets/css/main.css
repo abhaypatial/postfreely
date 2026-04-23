@@ -410,11 +410,12 @@ button,input,select,textarea{font:inherit}
 #sb-footer{padding:8px;flex-shrink:0;border-top:1px solid var(--border)}
 #sb-import-btn{width:100%;padding:7px;background:none;border:1px dashed var(--border2);border-radius:var(--radius);color:var(--text3);font-family:var(--font);font-size:11px;cursor:pointer;transition:all .15s}
 #sb-import-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accentbg)}
-#sidebar-reopen{display:none;align-items:center;justify-content:center;gap:8px;height:28px;padding:0 10px;border:1px solid var(--accentborder);background:linear-gradient(180deg,var(--bg2),rgba(0,0,0,0.12));color:var(--accent);border-radius:999px;cursor:pointer;transition:background .18s,border-color .18s,color .18s,transform .18s,box-shadow .18s;box-shadow:0 8px 18px rgba(0,0,0,0.16);flex-shrink:0}
+#sidebar-reopen{display:none;align-items:center;justify-content:center;gap:6px;height:24px;padding:0 10px;margin:0 4px 0 8px;border:1px solid var(--border2);background:var(--btn-bg);color:var(--text2);border-radius:var(--radius);cursor:pointer;transition:all .15s;flex-shrink:0;}
 body.sidebar-collapsed #sidebar-reopen{display:inline-flex}
-#sidebar-reopen:hover{background:linear-gradient(180deg,var(--bg3),var(--accentbg));border-color:var(--accent);transform:translateY(-1px)}
-.sidebar-reopen-icon{display:flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:999px;background:var(--accentbg);border:1px solid var(--accentborder);font-family:var(--font);font-size:13px;font-weight:700;flex-shrink:0}
-.sidebar-reopen-label{display:flex;align-items:center;justify-content:center;font-family:var(--font);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap}
+#sidebar-reopen:hover{background:var(--accentbg);border-color:var(--accent);color:var(--accent);}
+#sidebar-reopen:hover .sidebar-reopen-icon-svg{color:var(--accent);}
+.sidebar-reopen-icon-svg{transition:color .15s;color:var(--text3);}
+.sidebar-reopen-label{display:flex;align-items:center;justify-content:center;font-family:var(--font-ui);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;padding-top:1px;}
 
 /* ═══════════════════════════════════════════
    REQUEST PANEL  (right side)
