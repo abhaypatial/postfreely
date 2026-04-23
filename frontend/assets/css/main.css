@@ -271,7 +271,7 @@ button,input,select,textarea{font:inherit}
 /* ═══════════════════════════════════════════
    TOPBAR
 ═══════════════════════════════════════════ */
-#topbar{display:flex !important;flex-direction:column !important;align-items:stretch !important;height:auto !important;background:var(--glass-bg, var(--bg2));background-image:none !important;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--border);padding:0;gap:0;flex-shrink:0;z-index:50;width:100% !important}
+#topbar{display:flex !important;flex-direction:column !important;align-items:stretch !important;height:auto !important;background:var(--bg2) !important;background-image:none !important;border-bottom:1px solid var(--border);padding:0;gap:0;flex-shrink:0;z-index:50;width:100% !important}
 #topbar-main{display:flex;align-items:center;flex-shrink:0;gap:16px;height:46px;padding:0 16px}
 #brand-area{display:flex;align-items:center;gap:10px}
 #logo{font-family:var(--font-ui);font-size:16px;font-weight:800;color:var(--text);letter-spacing:-0.5px;white-space:nowrap;margin:0}
