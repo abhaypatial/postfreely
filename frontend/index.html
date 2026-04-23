@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>PostFreely</title>
-<link rel="stylesheet" href="/assets/css/main.css"/>
+<link rel="stylesheet" href="/assets/css/main.css?v=2"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
@@ -649,6 +649,12 @@
       </div>
     </div>
   </div>
+</div>
+
+<div id="tab-ctx-menu" style="display:none; position:fixed; background:var(--bg2); border:1px solid var(--border); border-radius:6px; box-shadow:var(--shadow); z-index:9999; min-width:160px; padding:4px 0;">
+  <div class="ctx-item" id="ctx-close-all-save" style="padding:6px 12px; font-size:11px; cursor:pointer; color:var(--text); font-family:var(--font);">Save & Close All</div>
+  <div class="ctx-item" id="ctx-close-all-discard" style="padding:6px 12px; font-size:11px; cursor:pointer; color:var(--red); font-family:var(--font);">Close All (Discard)</div>
+  <div class="ctx-item" id="ctx-close-other" style="padding:6px 12px; font-size:11px; cursor:pointer; color:var(--text); font-family:var(--font);">Close Others</div>
 </div>
 
 <script src="/assets/js/core/site-config.js"></script>
