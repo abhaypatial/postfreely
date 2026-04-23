@@ -909,7 +909,7 @@ function shouldOfferVerificationHelp(message) {
 
 function authModeNote() {
   if (!State.publicConfig.password_auth_enabled) {
-    return 'Google sign-in is enabled for now. Email/password signup is hidden until custom email delivery is configured.';
+    return '';
   }
   if (_authMode === 'signup') {
     return 'Create an account to sync collections, environments, history, and runner results. After signup, PostFreely will email you a confirmation link.';
@@ -936,7 +936,18 @@ function setAuthMode(mode = 'signin') {
     : 'Continue with Google';
   document.getElementById('do-signin-btn').style.display = passwordEnabled ? '' : 'none';
   document.getElementById('do-google-signin-btn').textContent = passwordEnabled ? 'Google' : 'Continue with Google';
-  document.getElementById('signin-cloud-note').textContent = authModeNote();
+  
+  const noteEl = document.getElementById('signin-cloud-note');
+  noteEl.textContent = authModeNote();
+  noteEl.style.display = noteEl.textContent ? '' : 'none';
+  
+  const cloudView = document.getElementById('signin-cloud-view');
+  if (!passwordEnabled) {
+    cloudView.classList.add('google-only-mode');
+  } else {
+    cloudView.classList.remove('google-only-mode');
+  }
+  
   if (_authMode !== 'signup') {
     document.getElementById('signin-password-confirm').value = '';
   }
