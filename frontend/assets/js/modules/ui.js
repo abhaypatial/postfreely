@@ -737,7 +737,7 @@ function handleVariableHighlightViewportChange() {
 
 function getVariableHoverField(target) {
   if (!(target instanceof Element)) return null;
-  const field = target.closest('#url-inp, #body-ta, #params-kv input, #headers-kv input, #auth-fields input');
+  const field = target.closest('#url-inp, #body-ta, #prescript-ta, #postscript-ta, #params-kv input, #headers-kv input, #auth-fields input');
   if (!field) return null;
   if (!(field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement)) return null;
   if (field instanceof HTMLInputElement && (field.type === 'password' || field.type === 'hidden')) return null;
@@ -902,7 +902,8 @@ function shouldShowVariableTokenHighlight(field) {
   if (!(field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement)) return false;
   if (field instanceof HTMLInputElement && (field.type === 'password' || field.type === 'hidden')) return false;
   if (!field.isConnected || field.offsetParent === null) return false;
-  return String(field.value || '').includes('{{');
+  const val = String(field.value || '');
+  return val.includes('{{') || ((field.id === 'prescript-ta' || field.id === 'postscript-ta') && (val.includes('//') || val.includes('/*')));
 }
 
 function getPreferredVariableHighlightField() {
@@ -914,6 +915,8 @@ function getPreferredVariableHighlightField() {
   const candidates = [
     document.getElementById('url-inp'),
     document.querySelector('#panel-body.active #body-ta'),
+    document.querySelector('#panel-prescript.active #prescript-ta'),
+    document.querySelector('#panel-postscript.active #postscript-ta'),
     ...document.querySelectorAll('#panel-params.active #params-kv input, #panel-headers.active #headers-kv input, #panel-auth.active #auth-fields input'),
   ];
   return candidates.find(shouldShowVariableTokenHighlight) || null;
