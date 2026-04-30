@@ -1193,15 +1193,96 @@ async function sleepWithStop(delayMs) {
   return !RUNNER_STATE.stopRequested;
 }
 
-async function executeIteration(run, collection, envId, requestDefs, iteration, dataRow, delayMs) {
-  const variables = {
-    ...environmentVariables(envId),
-    ...collectionVariables(collection),
-    ...(dataRow && typeof dataRow === 'object' ? dataRow : {}),
+function runRunnerScript(code, context = {}) {
+  const logs = [];
+  const tests = [];
+  let nextRequest = undefined;
+
+  const envProxy = {
+    get: (key) => context.variables?.[key] ?? '',
+    set: (key, val) => { if (context.variables) context.variables[key] = val; },
   };
 
-  for (const requestDef of requestDefs) {
+  const collProxy = {
+    get: (key) => context.collectionVariables?.[key] ?? '',
+    set: (key, val) => { if (context.collectionVariables) context.collectionVariables[key] = val; }
+  };
+
+  const execProxy = {
+    setNextRequest: (reqName) => { nextRequest = reqName; }
+  };
+
+  const requestProxy = context.request ? new Proxy(context.request, {
+    set(t, k, v) { t[k] = v; return true; }
+  }) : {};
+
+  const responseProxy = context.response ? {
+    ...context.response,
+    json: () => {
+      try { return JSON.parse(context.response.body); }
+      catch { return null; }
+    },
+    get status() { return context.response.status_code; },
+    get headers() { return context.response.headers || {}; },
+  } : null;
+
+  const testFn = (name, fn) => {
+    try { tests.push({ name, passed: !!fn() }); } 
+    catch(e) { tests.push({ name, passed: false }); }
+  };
+  const consoleFn = { log: (...a) => logs.push({ type:'info', msg: a.map(x=>JSON.stringify(x)).join(' ') }) };
+
+  const pm = {
+    environment: { get: (k) => envProxy.get(k), set: (k,v) => envProxy.set(k,v) },
+    variables: { get: (k) => envProxy.get(k), set: (k,v) => envProxy.set(k,v) },
+    collectionVariables: { get: (k) => collProxy.get(k), set: (k,v) => collProxy.set(k,v) },
+    env: new Proxy({}, { get: (_, k) => envProxy.get(k), set: (_, k, v) => { envProxy.set(k,v); return true; } }),
+    execution: execProxy,
+    request: requestProxy,
+    response: responseProxy,
+  };
+
+  try {
+    // eslint-disable-next-line no-new-func
+    new Function('env', 'request', 'response', 'test', 'console', 'crypto', 'pm', code)(
+      envProxy, requestProxy, responseProxy, testFn, consoleFn,
+      typeof crypto !== 'undefined' ? crypto : { randomUUID: () => Math.random().toString(36).slice(2) },
+      pm
+    );
+  } catch(e) {
+    logs.push({ type:'err', msg:`Script error: ${e.message}` });
+    return { tests, logs, error: e.message, nextRequest };
+  }
+  return { tests, logs, error: null, nextRequest };
+}
+
+async function executeIteration(run, collection, envId, requestDefs, iteration, dataRow, delayMs) {
+  const envVars = environmentVariables(envId);
+  const collVars = collectionVariables(collection);
+  const activeVariables = { ...envVars, ...(dataRow && typeof dataRow === 'object' ? dataRow : {}) };
+
+  let currentIndex = 0;
+  
+  while (currentIndex < requestDefs.length) {
     if (RUNNER_STATE.stopRequested) return false;
+    
+    const baseRequestDef = requestDefs[currentIndex];
+    const requestDef = { ...baseRequestDef }; // Shallow copy to avoid cross-iteration mutation
+    let nextRequestOverride = undefined;
+
+    // Prescript
+    if (requestDef.prescript?.trim()) {
+      const requestCtx = { url: requestDef.url, method: requestDef.method };
+      const pre = runRunnerScript(requestDef.prescript, {
+        variables: activeVariables,
+        collectionVariables: collVars,
+        request: requestCtx
+      });
+      if (pre.nextRequest !== undefined) nextRequestOverride = pre.nextRequest;
+      if (requestCtx.url) requestDef.url = requestCtx.url;
+      if (requestCtx.method) requestDef.method = requestCtx.method;
+    }
+
     if (delayMs > 0) {
       const keepGoing = await sleepWithStop(delayMs);
       if (!keepGoing) return false;
@@ -1222,7 +1303,7 @@ async function executeIteration(run, collection, envId, requestDefs, iteration, 
         transport_mode: normalized.transport_mode || 'auto',
         browser_compatibility: normalized.browser_compatibility || defaultRunnerCompatibility(),
       }, {
-        variables,
+        variables: { ...activeVariables, ...collVars },
         saveHistory: true,
       });
     } catch (error) {
@@ -1245,10 +1326,42 @@ async function executeIteration(run, collection, envId, requestDefs, iteration, 
       };
     }
 
+    // Postscript
+    if (requestDef.postscript?.trim()) {
+      const post = runRunnerScript(requestDef.postscript, {
+        variables: activeVariables,
+        collectionVariables: collVars,
+        response: response
+      });
+      response.tests = post.tests || [];
+      response.postscript_logs = post.logs || [];
+      response.postscript_error = post.error || '';
+      if (post.nextRequest !== undefined) nextRequestOverride = post.nextRequest;
+    }
+
     requestDef.browser_compatibility = API.mergeCompatibility(requestDef.browser_compatibility, response.browser_compatibility);
     appendRunResult(run, requestDef, iteration, dataRow, response);
     RUNNER_STATE.lastResultCount = run.results.length;
     renderRunResults(run, { scroll: false });
+
+    if (nextRequestOverride !== undefined) {
+      if (nextRequestOverride === null) {
+        break;
+      }
+      const targetIdx = requestDefs.findIndex(r => r.name === nextRequestOverride || r.id === nextRequestOverride);
+      if (targetIdx !== -1) {
+        currentIndex = targetIdx;
+      } else {
+        break;
+      }
+    } else {
+      currentIndex++;
+    }
+  }
+
+  if (collection) {
+    if (!collection.variables) collection.variables = {};
+    Object.assign(collection.variables, collVars);
   }
 
   markIterationComplete(run, iteration);

@@ -9,6 +9,7 @@ function runScript(code, context = {}) {
   const logs    = [];
   const tests   = [];   // { name, passed }
   const envChanges = {};
+  const collChanges = {};
   let   requestMutations = {};
 
   const envProxy = {
@@ -21,6 +22,25 @@ function runScript(code, context = {}) {
       envChanges[key] = val;
       logs.push({ type:'set', msg:`env.set('${key}', ${JSON.stringify(val)})` });
     },
+  };
+
+  const collProxy = {
+    get: (key) => {
+      const tab = State.getTab(State.activeTab);
+      const val = State.variablesFor(tab?.collectionId || null).merged[key] ?? '';
+      logs.push({ type:'info', msg:`collection.get('${key}') → ${JSON.stringify(val)}` });
+      return val;
+    },
+    set: (key, val) => {
+      collChanges[key] = val;
+      logs.push({ type:'set', msg:`collection.set('${key}', ${JSON.stringify(val)})` });
+    },
+  };
+
+  const execProxy = {
+    setNextRequest: (reqName) => {
+      logs.push({ type:'info', msg:`execution.setNextRequest('${reqName}') (ignored in single request mode)` });
+    }
   };
 
   const requestProxy = context.request ? new Proxy(context.request, {
@@ -59,10 +79,15 @@ function runScript(code, context = {}) {
       get: (key) => envProxy.get(key),
       set: (key, val) => envProxy.set(key, val)
     },
+    collectionVariables: {
+      get: (key) => collProxy.get(key),
+      set: (key, val) => collProxy.set(key, val)
+    },
     env: new Proxy({}, {
       get: (_, key) => envProxy.get(key),
       set: (_, key, val) => { envProxy.set(key, val); return true; }
     }),
+    execution: execProxy,
     request: requestProxy,
     response: responseProxy,
   };
@@ -76,9 +101,9 @@ function runScript(code, context = {}) {
     );
   } catch(e) {
     logs.push({ type:'err', msg:`Script error: ${e.message}` });
-    return { envChanges, requestMutations, tests, logs, error: e.message };
+    return { envChanges, collChanges, requestMutations, tests, logs, error: e.message };
   }
-  return { envChanges, requestMutations, tests, logs, error: null };
+  return { envChanges, collChanges, requestMutations, tests, logs, error: null };
 }
 
 function showScriptLog(logElId, result) {
@@ -100,6 +125,16 @@ function applyScriptEnvChanges(changes) {
   // Persist to backend
   API.updateEnvironment(activeId, { name: env.name, variables: env.variables });
   renderEnvStrip();
+}
+
+function applyScriptCollChanges(changes, collectionId) {
+  if (!Object.keys(changes).length || !collectionId) return;
+  const col = State.collections[collectionId];
+  if (!col) return;
+  if (!col.variables) col.variables = {};
+  Object.assign(col.variables, changes);
+  API.updateCollection(collectionId, { variables: col.variables });
+  renderEnvStrip(); // refits variables panel
 }
 
 function showPostScriptBadge(tests) {
@@ -675,6 +710,7 @@ async function doSend() {
     const pre = runScript(tab.prescript, { request: requestCtx });
     showScriptLog('prescript-log', pre);
     if (Object.keys(pre.envChanges).length) applyScriptEnvChanges(pre.envChanges);
+    if (Object.keys(pre.collChanges).length) applyScriptCollChanges(pre.collChanges, tab.collectionId);
     // Apply request mutations from pre-script back into tab
     if (pre.requestMutations.url)    { tab.url    = pre.requestMutations.url;    document.getElementById('url-inp').value = tab.url; }
     if (pre.requestMutations.method) { tab.method = pre.requestMutations.method; document.getElementById('method-sel').value = tab.method; }
@@ -718,7 +754,12 @@ async function doSend() {
       showScriptLog('postscript-log', post);
       if (Object.keys(post.envChanges).length) {
         applyScriptEnvChanges(post.envChanges);
-        showToast(`Script saved ${Object.keys(post.envChanges).length} variable(s) to env`);
+      }
+      if (Object.keys(post.collChanges).length) {
+        applyScriptCollChanges(post.collChanges, tab.collectionId);
+      }
+      if (Object.keys(post.envChanges).length || Object.keys(post.collChanges).length) {
+        showToast(`Script saved variable(s) successfully`);
       }
       result.tests = post.tests || [];
       result.postscript_logs = post.logs || [];

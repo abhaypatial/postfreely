@@ -643,7 +643,7 @@ function renderSidebar(filter = '') {
   });
 }
 
-const VAR_TOKEN_RE = /\{\{\s*([^{}]+?)\s*\}\}/g;
+const VAR_TOKEN_RE = /\{\{\s*([^{}]+?)\s*\}\}|(\/\/.*)|(\/\*[\s\S]*?\*\/)/g;
 let _varHoverTooltip = null;
 let _varHoverMirror = null;
 let _varHighlightLayer = null;
@@ -819,13 +819,17 @@ function buildVariableTokenMirrorHTML(value, tokenClass, collectionId = null) {
   VAR_TOKEN_RE.lastIndex = 0;
 
   for (let match = VAR_TOKEN_RE.exec(value); match; match = VAR_TOKEN_RE.exec(value)) {
-    const key = match[1].trim();
-    const resolved = State.resolveVariable(key, collectionId);
-    const sourceClass = resolved.source === 'collection'
-      ? ' var-token-collection'
-      : (resolved.source === 'environment' ? ' var-token-environment' : ' var-token-missing');
     html += esc(value.slice(lastIndex, match.index));
-    html += `<span class="${tokenClass}${sourceClass}" data-key="${esc(key)}" data-raw="${esc(match[0])}">${esc(match[0])}</span>`;
+    if (match[1]) {
+      const key = match[1].trim();
+      const resolved = State.resolveVariable(key, collectionId);
+      const sourceClass = resolved.source === 'collection'
+        ? ' var-token-collection'
+        : (resolved.source === 'environment' ? ' var-token-environment' : ' var-token-missing');
+      html += `<span class="${tokenClass}${sourceClass}" data-key="${esc(key)}" data-raw="${esc(match[0])}">${esc(match[0])}</span>`;
+    } else {
+      html += `<span style="color:var(--text3);font-style:italic;">${esc(match[0])}</span>`;
+    }
     lastIndex = match.index + match[0].length;
   }
 
