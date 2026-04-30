@@ -23,6 +23,13 @@
           <button class="tb-btn" id="ai-config-btn">AI Config</button>
           <button class="tb-btn" id="theme-btn">Appearance</button>
           <button class="tb-btn" id="runner-btn">Runner</button>
+          <button class="tb-btn" id="sidebar-reopen" title="Show collections" style="display:none; align-items:center; gap:6px;">
+            <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="9" y1="3" x2="9" y2="21"></line>
+            </svg>
+            <span>Collections</span>
+          </button>
         </div>
         <div class="tb-actions-cluster tb-actions-meta">
           <div id="admin-scope-wrap" style="display:none">
@@ -34,19 +41,15 @@
       </div>
     </div>
     <div id="topbar-tabs">
-      <button id="sidebar-reopen" title="Show collections">
-        <svg class="sidebar-reopen-icon-svg" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-          <line x1="9" y1="3" x2="9" y2="21"></line>
-        </svg>
-        <span class="sidebar-reopen-label">Collections</span>
-      </button>
       <button class="tab-scroll-btn" id="tab-scroll-left" type="button" aria-label="Scroll tabs left">‹</button>
       <div id="tab-bar-wrap">
         <div id="tab-bar"></div>
       </div>
       <button class="tab-scroll-btn" id="tab-scroll-right" type="button" aria-label="Scroll tabs right">›</button>
       <button id="add-tab" title="New Tab (Ctrl+T)">+</button>
+      <button id="tab-options-btn" title="Tab Options" style="background:none; border:none; color:var(--text3); cursor:pointer; width:32px; height:32px; border-radius:6px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
+      </button>
       
       <div id="env-strip-right" style="margin-left:auto; display:flex; align-items:center; gap:6px; padding:0 12px; border-left:1px solid var(--border);">
         <span id="env-strip-label" style="font-size:9px; font-weight:700; color:var(--text3); font-family:var(--font-ui); text-transform:uppercase; letter-spacing:.8px;">ENV</span>
@@ -654,7 +657,7 @@
 <div id="tab-ctx-menu" style="display:none; position:fixed; background:var(--bg2); border:1px solid var(--border); border-radius:6px; box-shadow:var(--shadow); z-index:9999; min-width:160px; padding:4px 0;">
   <div class="ctx-item" id="ctx-close-all-save" style="padding:6px 12px; font-size:11px; cursor:pointer; color:var(--text); font-family:var(--font);">Save & Close All</div>
   <div class="ctx-item" id="ctx-close-all-discard" style="padding:6px 12px; font-size:11px; cursor:pointer; color:var(--red); font-family:var(--font);">Close All (Discard)</div>
-  <div class="ctx-item" id="ctx-close-other" style="padding:6px 12px; font-size:11px; cursor:pointer; color:var(--text); font-family:var(--font);">Close Others</div>
+  <div class="ctx-item" id="ctx-close-other" style="padding:6px 12px; font-size:11px; cursor:pointer; color:var(--text); font-family:var(--font);">Close Other Tabs</div>
 </div>
 
 <script src="/assets/js/core/site-config.js?v=2"></script>

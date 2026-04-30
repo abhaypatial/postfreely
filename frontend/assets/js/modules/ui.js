@@ -69,6 +69,70 @@ function methodColor(m) {
            PATCH:'mPATCH', HEAD:'mHEAD', OPTIONS:'mOPTIONS' }[m] || 'mHEAD';
 }
 
+let ctxActiveTabId = null;
+function showTabContextMenu(e) {
+  const menu = document.getElementById('tab-ctx-menu');
+  if (!menu) return;
+  
+  if (menu.style.display === 'block') {
+    menu.style.display = 'none';
+    return;
+  }
+  
+  menu.style.display = 'block';
+  ctxActiveTabId = State.activeTab;
+  
+  const btnRect = e.currentTarget.getBoundingClientRect();
+  let x = btnRect.right - menu.offsetWidth;
+  let y = btnRect.bottom + 4;
+  
+  // keep within bounds
+  if (x < 0) x = 8;
+  if (y + menu.offsetHeight > window.innerHeight) y = btnRect.top - menu.offsetHeight - 4;
+  
+  menu.style.left = x + 'px';
+  menu.style.top = y + 'px';
+  
+  const hideMenu = (clickEvent) => {
+    if (e.currentTarget.contains(clickEvent.target)) return;
+    menu.style.display = 'none';
+    document.removeEventListener('click', hideMenu);
+  };
+  
+  setTimeout(() => {
+    document.addEventListener('click', hideMenu);
+  }, 10);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const tabOptionsBtn = document.getElementById('tab-options-btn');
+  if (tabOptionsBtn) {
+    tabOptionsBtn.addEventListener('click', showTabContextMenu);
+  }
+
+  const menu = document.getElementById('tab-ctx-menu');
+  if (menu) {
+    document.getElementById('ctx-close-all-save')?.addEventListener('click', () => {
+      saveCurrentTabState();
+      State.tabs = [State.newTab()];
+      switchTab(State.tabs[0].id);
+      menu.style.display = 'none';
+    });
+    document.getElementById('ctx-close-all-discard')?.addEventListener('click', () => {
+      State.tabs = [State.newTab()];
+      switchTab(State.tabs[0].id);
+      menu.style.display = 'none';
+    });
+    document.getElementById('ctx-close-other')?.addEventListener('click', () => {
+      if (!ctxActiveTabId) return;
+      saveCurrentTabState();
+      State.tabs = State.tabs.filter(t => t.id === ctxActiveTabId);
+      switchTab(ctxActiveTabId);
+      menu.style.display = 'none';
+    });
+  }
+});
+
 function switchTab(id) {
   saveCurrentTabState();
   State.activeTab = id;

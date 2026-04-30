@@ -50,11 +50,29 @@ function runScript(code, context = {}) {
 
   const consoleFn = { log: (...a) => logs.push({ type:'info', msg: a.map(x=>JSON.stringify(x)).join(' ') }) };
 
+  const pm = {
+    environment: {
+      get: (key) => envProxy.get(key),
+      set: (key, val) => envProxy.set(key, val)
+    },
+    variables: {
+      get: (key) => envProxy.get(key),
+      set: (key, val) => envProxy.set(key, val)
+    },
+    env: new Proxy({}, {
+      get: (_, key) => envProxy.get(key),
+      set: (_, key, val) => { envProxy.set(key, val); return true; }
+    }),
+    request: requestProxy,
+    response: responseProxy,
+  };
+
   try {
     // eslint-disable-next-line no-new-func
-    new Function('env', 'request', 'response', 'test', 'console', 'crypto', code)(
+    new Function('env', 'request', 'response', 'test', 'console', 'crypto', 'pm', code)(
       envProxy, requestProxy, responseProxy, testFn, consoleFn,
-      typeof crypto !== 'undefined' ? crypto : { randomUUID: () => Math.random().toString(36).slice(2) }
+      typeof crypto !== 'undefined' ? crypto : { randomUUID: () => Math.random().toString(36).slice(2) },
+      pm
     );
   } catch(e) {
     logs.push({ type:'err', msg:`Script error: ${e.message}` });

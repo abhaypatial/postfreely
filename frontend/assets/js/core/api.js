@@ -176,8 +176,11 @@ function buildExternalRequest(payload = {}, options = {}) {
 
   let body = null;
   if (!BROWSER_SAFE_METHODS.has(method)) {
-    const rawBody = payload.body == null ? '' : interpolateString(payload.body, variables);
+    let rawBody = payload.body == null ? '' : interpolateString(payload.body, variables);
     if (rawBody) {
+      if (bodyType === 'json') {
+        rawBody = rawBody.replace(/\\"|"(?:\\"|[^"])*"|(\/\/.*)/g, (m, g1) => g1 ? '' : m);
+      }
       body = rawBody;
       if (!Object.keys(headers).some(key => key.toLowerCase() === 'content-type')) {
         headers['Content-Type'] = defaultContentTypeForBodyType(bodyType);
@@ -332,6 +335,8 @@ function shouldUseBrowser(payload = {}) {
   if (transport === 'browser') return true;
   if (compat.status === 'supported') return true;
   if (compat.status === 'blocked') return false;
+  const isLocalHost = payload.url && /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\]|0\.0\.0\.0)/i.test(payload.url);
+  if (isLocalHost) return true;
   return BROWSER_SAFE_METHODS.has(method);
 }
 

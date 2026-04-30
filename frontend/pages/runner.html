@@ -81,7 +81,7 @@ body { min-height: 100vh; }
 }
 .config-grid {
   display: grid;
-  grid-template-columns: minmax(220px, 2fr) minmax(180px, 1.2fr) 120px 120px 110px auto;
+  grid-template-columns: minmax(200px, 2fr) minmax(140px, 1.2fr) 100px 100px 90px 110px auto;
   gap: 14px;
   align-items: end;
 }
@@ -930,6 +930,14 @@ body { min-height: 100vh; }
           <label>Parallel</label>
           <input type="number" id="r-parallel" value="4" min="1" max="12"/>
         </div>
+        <div class="r-field">
+          <label>Mode</label>
+          <select id="r-transport">
+            <option value="browser">Browser</option>
+            <option value="auto">Auto</option>
+            <option value="proxy">Proxy</option>
+          </select>
+        </div>
         <div class="run-stack">
           <button class="r-run-btn" id="r-run-btn" type="button">Run Collection</button>
           <button class="r-stop-btn" id="r-stop-btn" type="button" style="display:none">Stop</button>
@@ -1295,6 +1303,7 @@ function persistRunnerPrefs() {
     envId: document.getElementById('r-env-sel')?.value || '',
     delayMs: document.getElementById('r-delay')?.value || '0',
     parallel: document.getElementById('r-parallel')?.value || '4',
+    transport: document.getElementById('r-transport')?.value || 'browser',
     manualIterations: RUNNER_STATE.manualIterations || 1,
   };
   localStorage.setItem(RUNNER_STORAGE_KEY, JSON.stringify(data));
@@ -1526,6 +1535,7 @@ function bindRunnerEvents() {
   envSelect.addEventListener('change', persistRunnerPrefs);
   document.getElementById('r-delay').addEventListener('input', persistRunnerPrefs);
   document.getElementById('r-parallel').addEventListener('input', persistRunnerPrefs);
+  document.getElementById('r-transport')?.addEventListener('change', persistRunnerPrefs);
   document.getElementById('r-iters').addEventListener('input', event => {
     RUNNER_STATE.manualIterations = parseInt(event.target.value, 10) || 1;
     renderConfigState();
@@ -1577,6 +1587,27 @@ function bindRunnerEvents() {
   });
 }
 
+function showToast(msg, isError = false) {
+  const el = document.getElementById('r-toast') || (() => {
+    const d = document.createElement('div');
+    d.id = 'r-toast';
+    d.style.cssText = 'position:fixed;bottom:24px;right:24px;padding:12px 20px;border-radius:8px;z-index:9999;color:#fff;font-size:14px;transition:opacity 0.3s;pointer-events:none;opacity:0;';
+    document.body.appendChild(d);
+    return d;
+  })();
+  el.textContent = msg;
+  el.style.background = isError ? '#ff5c7c' : '#333';
+  el.style.opacity = '1';
+  clearTimeout(el._to);
+  el._to = setTimeout(() => { el.style.opacity = '0'; }, 3000);
+}
+
+function showRunnerBootError(msg) {
+  console.error('[Runner Boot]', msg);
+  showToast(msg, true);
+}
+function clearRunnerBootError() {}
+
 async function hydrateRunnerData(preselect = '', saved = {}) {
   const issues = [];
   let selectedCollectionId = preselect || saved.collectionId || '';
@@ -1616,10 +1647,13 @@ async function hydrateRunnerData(preselect = '', saved = {}) {
 
   RUNNER_STATE.manualIterations = Number(saved.manualIterations || RUNNER_STATE.manualIterations || 1) || 1;
   RUNNER_STATE.settings = settings || {};
-  applySettings(settings);
+  if (typeof applySettings === 'function') applySettings(settings);
 
   document.getElementById('r-delay').value = saved.delayMs || '0';
   document.getElementById('r-parallel').value = saved.parallel || String(settings?.runner_parallel || 4);
+  if (document.getElementById('r-transport')) {
+    document.getElementById('r-transport').value = saved.transport || 'browser';
+  }
   document.getElementById('r-iters').value = RUNNER_STATE.manualIterations;
 
   setCollectionOptions(selectedCollectionId);
@@ -2364,7 +2398,14 @@ async function runCollection() {
   }
 
   const collection = findCollection(collectionId);
-  const requestDefs = (collection?.requests || []).map(normalizeRunnerRequest);
+  const transportMode = document.getElementById('r-transport')?.value || 'browser';
+  const requestDefs = (collection?.requests || []).map(req => {
+    const norm = normalizeRunnerRequest(req);
+    if (transportMode !== 'auto') {
+      norm.transport_mode = transportMode;
+    }
+    return norm;
+  });
   if (!collection || !requestDefs.length) {
     showToast('This collection has no runnable requests yet.', true);
     return;
@@ -2454,6 +2495,9 @@ async function init() {
   bindRunnerEvents();
   document.getElementById('r-delay').value = saved.delayMs || '0';
   document.getElementById('r-parallel').value = saved.parallel || '4';
+  if (document.getElementById('r-transport')) {
+    document.getElementById('r-transport').value = saved.transport || 'browser';
+  }
   document.getElementById('r-iters').value = RUNNER_STATE.manualIterations;
   renderDataPreview();
   renderConfigState();

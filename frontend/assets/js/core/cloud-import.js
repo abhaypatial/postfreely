@@ -103,6 +103,7 @@ window.PostFreelyCloudImport = (() => {
   }
 
   function tokenizeCurl(command = '') {
+    command = String(command || '').replace(/\\\r?\n/g, ' ');
     const tokens = [];
     let current = '';
     let quote = '';
