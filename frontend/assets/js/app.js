@@ -161,10 +161,10 @@ function normalizeSavedTab(tab, index) {
     params: Array.isArray(tab?.params) ? tab.params : [],
     headers: Array.isArray(tab?.headers) ? tab.headers : [],
     body: tab?.body || '',
-    bodyType: tab?.bodyType || 'json',
+    bodyType: tab?.bodyType || tab?.body_type || 'json',
     auth: tab?.auth || { type: 'none' },
-    prescript: tab?.prescript || '',
-    postscript: tab?.postscript || '',
+    prescript: tab?.prescript || tab?.pre_script || tab?.prerequest || '',
+    postscript: tab?.postscript || tab?.post_script || tab?.testscript || '',
     transportMode: tab?.transportMode || tab?.transport_mode || 'auto',
     browserCompatibility: tab?.browserCompatibility || tab?.browser_compatibility || API.compatibilityStatus('untested', 'Browser compatibility has not been checked yet.'),
     savedReqId: tab?.savedReqId || null,
@@ -240,6 +240,9 @@ function resetWorkspaceData() {
 
 function normalizeRequestExecution(request) {
   if (!request || typeof request !== 'object') return request;
+  request.bodyType = request.bodyType || request.body_type || 'json';
+  request.prescript = request.prescript || request.pre_script || request.prerequest || '';
+  request.postscript = request.postscript || request.post_script || request.testscript || '';
   request.transport_mode = request.transport_mode || request.transportMode || 'auto';
   request.browser_compatibility = API.mergeCompatibility(
     API.compatibilityStatus('untested', 'Browser compatibility has not been checked yet.'),

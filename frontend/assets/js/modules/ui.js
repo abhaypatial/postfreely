@@ -623,12 +623,12 @@ function renderSidebar(filter = '') {
           body:         r.body || '',
           bodyType:     r.bodyType || 'json',
           auth:         r.auth || { type:'none' },
-          prescript:    r.prescript || '',
+          prescript:    r.prescript || r.pre_script || r.prerequest || '',
           savedReqId:   r.id,
           collectionId: col.id,
           transportMode: r.transport_mode || r.transportMode || 'auto',
           browserCompatibility: r.browser_compatibility || r.browserCompatibility || API.compatibilityStatus('untested', 'Browser compatibility has not been checked yet.'),
-          postscript:   r.postscript || '',
+          postscript:   r.postscript || r.post_script || r.testscript || '',
         });
       });
     });

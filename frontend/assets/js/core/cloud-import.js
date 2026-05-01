@@ -219,6 +219,42 @@ window.PostFreelyCloudImport = (() => {
   function importPostman(raw) {
     const name = raw?.info?.name || 'Imported';
     const requests = [];
+    const scriptFromEvents = (events, listen) => {
+      const event = (events || []).find(row => row?.listen === listen);
+      const execLines = event?.script?.exec || '';
+      if (Array.isArray(execLines)) return execLines.map(line => String(line)).join('\n');
+      return typeof execLines === 'string' ? execLines : '';
+    };
+    const importVariables = (items) => {
+      const variables = {};
+      (items || []).forEach(item => {
+        if (item?.key) variables[String(item.key)] = item.value || '';
+      });
+      return variables;
+    };
+    const importAuth = (auth) => {
+      if (!auth || typeof auth !== 'object' || Array.isArray(auth)) return { type: 'none' };
+      const type = String(auth.type || 'none');
+      const rows = Array.isArray(auth[type]) ? auth[type] : [];
+      const values = {};
+      rows.forEach(row => {
+        if (row?.key) values[row.key] = row.value || '';
+      });
+      if (type === 'bearer') return { type: 'bearer', token: values.token || '' };
+      if (type === 'basic') return { type: 'basic', username: values.username || '', password: values.password || '' };
+      if (type === 'apikey' || type === 'apiKey') {
+        return {
+          type: 'apikey',
+          key_name: values.key || values.key_name || 'X-API-Key',
+          key_value: values.value || values.key_value || '',
+          in: values.in || 'header',
+        };
+      }
+      if (type === 'oauth2') return { type: 'oauth2', token: values.accessToken || values.token || '' };
+      return { type: 'none' };
+    };
+    const collectionPrescript = scriptFromEvents(raw?.event, 'prerequest');
+    const collectionPostscript = scriptFromEvents(raw?.event, 'test');
     const extract = (items, folder = null) => {
       (items || []).forEach(item => {
         if (Array.isArray(item.item)) {
@@ -227,11 +263,24 @@ window.PostFreelyCloudImport = (() => {
         }
         const req = item.request || item || {};
         let url = req.url || '';
-        if (url && typeof url === 'object' && !Array.isArray(url)) url = url.raw || '';
+        if (url && typeof url === 'object' && !Array.isArray(url)) {
+          url = url.raw || '';
+          try {
+            if (url && new URL(url.replace(/\{\{/g, 'pfvar').replace(/\}\}/g, '')).search) {
+              url = String(url).split('?')[0];
+            }
+          } catch (_) {
+            if (String(url).includes('?') && Array.isArray(req.url?.query)) url = String(url).split('?')[0];
+          }
+        }
         const body = req.body || {};
         let rawBody = '';
         let bodyType = 'json';
-        if (body.mode === 'raw') rawBody = body.raw || '';
+        if (body.mode === 'raw') {
+          rawBody = body.raw || '';
+          const rawLang = body.options?.raw?.language || '';
+          if (['json', 'xml', 'text', 'graphql'].includes(rawLang)) bodyType = rawLang;
+        }
         else if (body.mode === 'urlencoded') {
           bodyType = 'form';
           rawBody = (body.urlencoded || []).filter(row => !row.disabled && row.key).map(row => `${row.key}=${row.value || ''}`).join('&');
@@ -240,6 +289,8 @@ window.PostFreelyCloudImport = (() => {
           ? (req.url.query || []).filter(row => !row.disabled && row.key).map(row => [row.key, row.value || ''])
           : [];
         const headers = (req.header || []).filter(row => !row.disabled && row.key).map(row => [row.key, row.value || '']);
+        const prescript = [collectionPrescript, scriptFromEvents(item.event, 'prerequest')].filter(part => part.trim()).join('\n');
+        const postscript = [collectionPostscript, scriptFromEvents(item.event, 'test')].filter(part => part.trim()).join('\n');
         requests.push({
           id: uuid(),
           name: item.name || String(url || '').slice(0, 40) || 'Imported Request',
@@ -249,8 +300,10 @@ window.PostFreelyCloudImport = (() => {
           headers,
           body: rawBody,
           bodyType,
-          auth: { type: 'none' },
+          auth: importAuth(req.auth),
           folder,
+          prescript,
+          postscript,
         });
       });
     };
@@ -260,7 +313,7 @@ window.PostFreelyCloudImport = (() => {
       name,
       description: raw?.info?.description || '',
       created: nowIso(),
-      variables: {},
+      variables: importVariables(raw?.variable),
       docs_url: '',
       docs_notes: '',
       allow_ai_doc_fetch: false,

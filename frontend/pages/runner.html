@@ -1204,7 +1204,13 @@ function runRunnerScript(code, context = {}) {
   };
 
   const collProxy = {
-    get: (key) => context.collectionVariables?.[key] ?? '',
+    get: (key) => {
+      const collectionValue = context.collectionVariables?.[key];
+      if (collectionValue !== undefined && collectionValue !== null && String(collectionValue) !== '') {
+        return collectionValue;
+      }
+      return context.variables?.[key] ?? '';
+    },
     set: (key, val) => { if (context.collectionVariables) context.collectionVariables[key] = val; }
   };
 
