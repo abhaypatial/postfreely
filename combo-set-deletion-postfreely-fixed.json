@@ -1,0 +1,224 @@
+{
+  "info": {
+    "_postman_id": "73989cd1-c96d-4702-ad0c-d6753ae98902-fixed",
+    "name": "Combo Set Deletion Workflow (PostFreely Fixed)",
+    "description": "CSV headers required: store_id, division_combo_set_group_id",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Get Auth Token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "var response = pm.response.json();",
+              "var token = response && response.access_token;",
+              "",
+              "if (!token) {",
+              "    console.log('Auth response did not include access_token.');",
+              "    pm.execution.setNextRequest(null);",
+              "} else {",
+              "    pm.environment.set('bearer_token', token);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "accept",
+            "value": "*/*"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"currentTenantId\": \"{{currentTenantId}}\",\n  \"currentStoreId\": \"{{store_id}}\",\n  \"grant_type\": \"password\",\n  \"client\": \"{{client}}\",\n  \"password\": \"{{password}}\",\n  \"email\": \"{{email}}\",\n  \"version\": \"string\",\n  \"requestTime\": \"{{requestTime}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://{{env}}.volantecloud.com/auth/auth/token",
+          "protocol": "https",
+          "host": [
+            "{{env}}",
+            "volantecloud",
+            "com"
+          ],
+          "path": [
+            "auth",
+            "auth",
+            "token"
+          ]
+        }
+      }
+    },
+    {
+      "name": "2. Get Local Combo Set Group ID",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "var response = pm.response.json();",
+              "var content = response && Array.isArray(response.content) ? response.content : [];",
+              "var match = content.find(function (item) {",
+              "    return item && item.localComboSetGroupId;",
+              "});",
+              "",
+              "if (!match) {",
+              "    pm.environment.set('local_combo_set_group_id', '');",
+              "    console.log('No local combo set group found for store ' + pm.variables.get('store_id') + ' and division combo set group ' + pm.variables.get('division_combo_set_group_id') + '.');",
+              "    pm.execution.setNextRequest(null);",
+              "} else {",
+              "    pm.environment.set('local_combo_set_group_id', match.localComboSetGroupId);",
+              "    console.log('Local combo set group id: ' + match.localComboSetGroupId);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{bearer_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bearer_token}}"
+          }
+        ],
+        "url": {
+          "raw": "https://{{env}}.volantecloud.com/api/menu/v1/local/combo-set-groups?storeId={{store_id}}&divisionComboSetGroupId={{division_combo_set_group_id}}",
+          "protocol": "https",
+          "host": [
+            "{{env}}",
+            "volantecloud",
+            "com"
+          ],
+          "path": [
+            "api",
+            "menu",
+            "v1",
+            "local",
+            "combo-set-groups"
+          ],
+          "query": [
+            {
+              "key": "storeId",
+              "value": "{{store_id}}"
+            },
+            {
+              "key": "divisionComboSetGroupId",
+              "value": "{{division_combo_set_group_id}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "3. Delete Local Combo Set Group",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "console.log('Delete completed for local combo set group id: ' + pm.variables.get('local_combo_set_group_id'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{bearer_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{bearer_token}}"
+          }
+        ],
+        "url": {
+          "raw": "https://{{env}}.volantecloud.com/api/menu/v1/local/combo-set-groups/{{local_combo_set_group_id}}",
+          "protocol": "https",
+          "host": [
+            "{{env}}",
+            "volantecloud",
+            "com"
+          ],
+          "path": [
+            "api",
+            "menu",
+            "v1",
+            "local",
+            "combo-set-groups",
+            "{{local_combo_set_group_id}}"
+          ]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "currentTenantId",
+      "value": ""
+    },
+    {
+      "key": "email",
+      "value": ""
+    },
+    {
+      "key": "password",
+      "value": ""
+    },
+    {
+      "key": "client",
+      "value": ""
+    },
+    {
+      "key": "requestTime",
+      "value": ""
+    },
+    {
+      "key": "env",
+      "value": "next"
+    },
+    {
+      "key": "bearer_token",
+      "value": ""
+    },
+    {
+      "key": "local_combo_set_group_id",
+      "value": ""
+    }
+  ]
+}

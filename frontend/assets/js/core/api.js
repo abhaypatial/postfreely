@@ -440,7 +440,7 @@ async function executeExternalRequest(payload, options = {}) {
     return directResult;
   }
 
-  return sendProxyRequest(payload);
+  return sendProxyRequest({ ...payload, data_vars: options.variables || payload.data_vars || {} });
 }
 
 async function testBrowserCompatibility(payload, options = {}) {

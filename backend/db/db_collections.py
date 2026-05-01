@@ -58,28 +58,101 @@ def update_variables(cid, variables, owner_id=None):
 def import_postman(raw, owner_id=None):
     name = raw.get("info", {}).get("name", "Imported")
     col_id = str(uuid.uuid4()); requests = []
+
+    def script_from_events(events, listen):
+        for event in events or []:
+            if event.get("listen") != listen:
+                continue
+            script = event.get("script") or {}
+            exec_lines = script.get("exec", "")
+            if isinstance(exec_lines, list):
+                return "\n".join(str(line) for line in exec_lines)
+            if isinstance(exec_lines, str):
+                return exec_lines
+        return ""
+
+    def import_variables(items):
+        variables = {}
+        for item in items or []:
+            if not isinstance(item, dict):
+                continue
+            key = item.get("key")
+            if key:
+                variables[str(key)] = item.get("value", "")
+        return variables
+
+    def import_auth(auth):
+        if not isinstance(auth, dict):
+            return {"type": "none"}
+        atype = auth.get("type", "none")
+        rows = auth.get(atype, [])
+        values = {}
+        if isinstance(rows, list):
+            values = {row.get("key"): row.get("value", "") for row in rows if isinstance(row, dict)}
+        if atype == "bearer":
+            return {"type": "bearer", "token": values.get("token", "")}
+        if atype == "basic":
+            return {"type": "basic", "username": values.get("username", ""), "password": values.get("password", "")}
+        if atype in ("apikey", "apiKey"):
+            return {
+                "type": "apikey",
+                "key_name": values.get("key", values.get("key_name", "X-API-Key")),
+                "key_value": values.get("value", values.get("key_value", "")),
+                "in": values.get("in", "header"),
+            }
+        if atype == "oauth2":
+            return {"type": "oauth2", "token": values.get("accessToken", values.get("token", ""))}
+        return {"type": "none"}
+
+    collection_prescript = script_from_events(raw.get("event", []), "prerequest")
+    collection_postscript = script_from_events(raw.get("event", []), "test")
+
     def extract(items, folder=None):
         for item in items:
             if "item" in item: extract(item["item"], item.get("name", folder)); continue
             req = item.get("request") or item
             if not req: continue
             url = req.get("url", "")
-            if isinstance(url, dict): url = url.get("raw", "")
+            if isinstance(url, dict):
+                url = url.get("raw", "")
+                if url and "?" in url and urlparse(url).query:
+                    url = url.split("?", 1)[0]
             method  = req.get("method", "GET").upper()
             headers = [[h["key"], h.get("value","")] for h in req.get("header",[]) if not h.get("disabled")]
             body    = ""
             bd      = req.get("body") or {}
             if bd.get("mode") == "raw":        body = bd.get("raw","")
             elif bd.get("mode") == "urlencoded": body = "&".join(f"{p['key']}={p.get('value','')}" for p in bd.get("urlencoded",[]))
+            body_type = "json"
+            if bd.get("mode") == "urlencoded":
+                body_type = "form"
+            elif bd.get("mode") == "raw":
+                raw_lang = ((bd.get("options") or {}).get("raw") or {}).get("language", "")
+                if raw_lang in ("json", "xml", "text", "graphql"):
+                    body_type = raw_lang
             params  = []
             if isinstance(req.get("url"), dict):
                 params = [[q["key"],q.get("value","")] for q in req["url"].get("query",[]) if not q.get("disabled")]
+            prescript = "\n".join(
+                part for part in (
+                    collection_prescript,
+                    script_from_events(item.get("event", []), "prerequest"),
+                ) if part.strip()
+            )
+            postscript = "\n".join(
+                part for part in (
+                    collection_postscript,
+                    script_from_events(item.get("event", []), "test"),
+                ) if part.strip()
+            )
             requests.append({"id":str(uuid.uuid4()),"name":item.get("name",url[:40]),
                 "method":method,"url":url,"params":params,"headers":headers,
-                "body":body,"auth":{"type":"none"},"folder":folder})
+                "body":body,"body_type":body_type,"bodyType":body_type,
+                "auth":import_auth(req.get("auth")),"folder":folder,
+                "prescript":prescript,"postscript":postscript})
     extract(raw.get("item", []))
     col = {"id":col_id,"name":name,"description":raw.get("info",{}).get("description",""),
-           "created":datetime.utcnow().isoformat(),"variables":{},"requests":requests,
+           "created":datetime.utcnow().isoformat(),"variables":import_variables(raw.get("variable", [])),"requests":requests,
            "docs_url":"","docs_notes":"","allow_ai_doc_fetch":False,"ai_sources":[]}
     save(col, owner_id=owner_id); return col
 

@@ -1303,7 +1303,7 @@ async function executeIteration(run, collection, envId, requestDefs, iteration, 
         transport_mode: normalized.transport_mode || 'auto',
         browser_compatibility: normalized.browser_compatibility || defaultRunnerCompatibility(),
       }, {
-        variables: { ...activeVariables, ...collVars },
+        variables: { ...collVars, ...activeVariables },
         saveHistory: true,
       });
     } catch (error) {
