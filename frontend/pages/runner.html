@@ -1150,11 +1150,13 @@ function createRunState(runId, collection, requestDefs, totalIterations, dataRow
 function appendRunResult(run, requestDef, iteration, dataRow, response) {
   const statusCode = Number(response?.status_code || 0);
   const passed = statusCode >= 200 && statusCode < 300;
+  const sentUrl = response?.request_sent?.url || requestDef.url || '';
   run.results.push({
     request_id: requestDef.id,
     request_name: requestDef.name || requestDef.url || 'Request',
     method: requestDef.method || 'GET',
-    url: requestDef.url || '',
+    url: sentUrl,
+    template_url: requestDef.url || '',
     iteration,
     data_row: dataRow,
     status_code: statusCode,
@@ -1275,6 +1277,7 @@ async function executeIteration(run, collection, envId, requestDefs, iteration, 
     const baseRequestDef = requestDefs[currentIndex];
     const requestDef = { ...baseRequestDef }; // Shallow copy to avoid cross-iteration mutation
     let nextRequestOverride = undefined;
+    let prescriptLogs = [];
 
     // Prescript
     if (requestDef.prescript?.trim()) {
@@ -1284,6 +1287,7 @@ async function executeIteration(run, collection, envId, requestDefs, iteration, 
         collectionVariables: collVars,
         request: requestCtx
       });
+      prescriptLogs = pre.logs || [];
       if (pre.nextRequest !== undefined) nextRequestOverride = pre.nextRequest;
       if (requestCtx.url) requestDef.url = requestCtx.url;
       if (requestCtx.method) requestDef.method = requestCtx.method;
@@ -1331,6 +1335,7 @@ async function executeIteration(run, collection, envId, requestDefs, iteration, 
         browser_compatibility: defaultRunnerCompatibility(),
       };
     }
+    response.prescript_logs = prescriptLogs;
 
     // Postscript
     if (requestDef.postscript?.trim()) {
@@ -2291,10 +2296,19 @@ function renderIterationGroup(iteration, results) {
 function renderResultItem(result, index) {
   const response = result.response || {};
   const headers = Object.entries(response.headers || {}).slice(0, 40).map(([key, value]) => `${key}: ${value}`).join('\n');
+  const sentRequest = response.request_sent || {};
+  const sentHeaders = Object.entries(sentRequest.headers || {}).map(([key, value]) => `${key}: ${value}`).join('\n');
   const dataRow = result.data_row && Object.keys(result.data_row).length
     ? JSON.stringify(result.data_row, null, 2)
     : 'No row data attached to this iteration.';
   const responseBody = response.body || result.body_preview || result.error_detail || 'No response body returned.';
+  const scriptLogs = [
+    ...(response.prescript_logs || []),
+    ...(response.postscript_logs || []),
+  ].map(log => `${log.type || 'info'}: ${log.msg || ''}`).join('\n');
+  const unresolvedWarning = String(result.url || '').includes('{{')
+    ? '<div class="detail-hint"><strong>Unresolved variable in sent URL.</strong><br>The actual request still contains {{...}}, so check the lookup script and runner variables before trusting this response.</div>'
+    : '';
   const errorSummary = result.error || `${result.status_code || 0} ${result.status_text || 'Request failed'}`;
   const aiOutputId = uniqueId('runner-ai');
   const resultKey = runResultKey(result);
@@ -2316,11 +2330,16 @@ function renderResultItem(result, index) {
         <span class="result-chevron">⌄</span>
       </button>
       <div class="result-detail">
+        ${unresolvedWarning}
         ${result.passed ? '' : `
           <div class="detail-hint">
             <strong>${esc(errorSummary)}</strong><br>
             ${esc(result.error_hint || 'Review the response body, auth, URL, and collection variables before retrying.')}
           </div>`}
+        <div class="detail-card" style="margin-bottom:12px">
+          <h4>Actual Request Sent</h4>
+          <div class="detail-pre">${esc(`${sentRequest.method || result.method || 'GET'} ${result.url || ''}${sentHeaders ? `\n\n${sentHeaders}` : ''}`)}</div>
+        </div>
         <div class="detail-grid">
           <div class="detail-card">
             <h4>Response Body</h4>
@@ -2335,6 +2354,11 @@ function renderResultItem(result, index) {
             <div class="detail-pre">${esc(dataRow)}</div>
           </div>
         </div>
+        ${scriptLogs ? `
+          <div class="detail-card" style="margin-top:12px">
+            <h4>Script Logs</h4>
+            <div class="detail-pre">${esc(scriptLogs)}</div>
+          </div>` : ''}
         <div class="detail-actions">
           <div class="file-chip">${formatSize(result.size_bytes || 0)} - ${result.elapsed_ms || 0}ms - ${esc(result.status_text || '')}</div>
           ${result.passed

@@ -425,6 +425,8 @@ async function executeBrowserRequest(payload, options = {}) {
 }
 
 async function executeExternalRequest(payload, options = {}) {
+  const variables = options.variables || payload.data_vars || {};
+  const requestSent = buildExternalRequest(payload, { variables });
   const transport = String(payload.transport_mode || 'auto').toLowerCase();
   const compat = compatibilityFromPayload(payload);
   const safeMethod = BROWSER_SAFE_METHODS.has(String(payload.method || 'GET').toUpperCase());
@@ -432,15 +434,19 @@ async function executeExternalRequest(payload, options = {}) {
 
   if (useBrowser) {
     const directResult = await executeBrowserRequest(payload, options);
+    directResult.request_sent = directResult.request_sent || requestSent;
     if (directResult._browser_failed_before_response && transport === 'auto' && compat.status !== 'supported' && safeMethod) {
-      const proxyResult = await sendProxyRequest(payload);
+      const proxyResult = await sendProxyRequest({ ...payload, data_vars: variables });
       proxyResult.browser_compatibility = compatibilityStatus('blocked', directResult.error_detail || directResult.error || 'Browser request was blocked.');
+      proxyResult.request_sent = proxyResult.request_sent || requestSent;
       return proxyResult;
     }
     return directResult;
   }
 
-  return sendProxyRequest({ ...payload, data_vars: options.variables || payload.data_vars || {} });
+  const proxyResult = await sendProxyRequest({ ...payload, data_vars: variables });
+  proxyResult.request_sent = proxyResult.request_sent || requestSent;
+  return proxyResult;
 }
 
 async function testBrowserCompatibility(payload, options = {}) {
