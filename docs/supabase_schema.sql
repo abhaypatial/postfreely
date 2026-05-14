@@ -1,7 +1,7 @@
 create extension if not exists pgcrypto;
 
 create table if not exists public.pf_profiles (
-  id uuid primary key,
+  id uuid primary key default gen_random_uuid(),
   email text not null unique,
   username text,
   provider text default 'email',
@@ -19,7 +19,7 @@ create table if not exists public.pf_user_settings (
 );
 
 create table if not exists public.pf_collections (
-  id uuid primary key,
+  id uuid primary key default gen_random_uuid(),
   owner_id uuid not null,
   name text not null,
   description text not null default '',
@@ -37,7 +37,7 @@ create index if not exists pf_collections_owner_created_idx
   on public.pf_collections (owner_id, created_at desc);
 
 create table if not exists public.pf_environments (
-  id uuid primary key,
+  id uuid primary key default gen_random_uuid(),
   owner_id uuid not null,
   name text not null,
   variables jsonb not null default '{}'::jsonb,
@@ -49,7 +49,7 @@ create index if not exists pf_environments_owner_created_idx
   on public.pf_environments (owner_id, created_at desc);
 
 create table if not exists public.pf_history (
-  id uuid primary key,
+  id uuid primary key default gen_random_uuid(),
   owner_id uuid not null,
   method text not null,
   url text not null,
@@ -63,7 +63,7 @@ create index if not exists pf_history_owner_timestamp_idx
   on public.pf_history (owner_id, timestamp desc);
 
 create table if not exists public.pf_workspaces (
-  id uuid primary key,
+  id uuid primary key default gen_random_uuid(),
   owner_id uuid not null,
   name text not null,
   description text not null default '',
@@ -75,7 +75,7 @@ create index if not exists pf_workspaces_owner_created_idx
   on public.pf_workspaces (owner_id, created_at desc);
 
 create table if not exists public.pf_workspace_members (
-  id uuid primary key,
+  id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references public.pf_workspaces(id) on delete cascade,
   user_id uuid,
   email text not null,
@@ -98,7 +98,7 @@ alter table public.pf_workspace_members
   add column if not exists permissions jsonb not null default '{"read": true, "write": true, "run": true, "manage": false}'::jsonb;
 
 create table if not exists public.pf_workspace_collections (
-  id uuid primary key,
+  id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references public.pf_workspaces(id) on delete cascade,
   collection_id uuid not null references public.pf_collections(id) on delete cascade,
   added_by uuid,
@@ -111,7 +111,7 @@ create index if not exists pf_workspace_collections_workspace_idx
   on public.pf_workspace_collections (workspace_id, created_at desc);
 
 create table if not exists public.pf_collection_drafts (
-  id uuid primary key,
+  id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null references public.pf_workspaces(id) on delete cascade,
   collection_id uuid not null references public.pf_collections(id) on delete cascade,
   editor_user_id uuid not null,
@@ -148,6 +148,8 @@ create or replace function public.pf_is_admin(user_id uuid)
 returns boolean
 language sql
 stable
+security definer
+set search_path = public
 as $$
   select exists(
     select 1
@@ -161,6 +163,8 @@ create or replace function public.pf_workspace_role(workspace uuid, user_id uuid
 returns text
 language sql
 stable
+security definer
+set search_path = public
 as $$
   select case
     when exists(
@@ -184,6 +188,8 @@ create or replace function public.pf_workspace_is_member(workspace uuid, user_id
 returns boolean
 language sql
 stable
+security definer
+set search_path = public
 as $$
   select public.pf_workspace_role(workspace, user_id) is not null;
 $$;
@@ -192,6 +198,8 @@ create or replace function public.pf_workspace_is_admin(workspace uuid, user_id 
 returns boolean
 language sql
 stable
+security definer
+set search_path = public
 as $$
   select public.pf_workspace_role(workspace, user_id) in ('owner', 'admin');
 $$;
@@ -200,6 +208,8 @@ create or replace function public.pf_workspace_has_permission(workspace uuid, us
 returns boolean
 language sql
 stable
+security definer
+set search_path = public
 as $$
   select
     public.pf_workspace_is_admin(workspace, user_id)
@@ -484,3 +494,48 @@ using (
   or public.pf_workspace_is_admin(workspace_id, auth.uid())
   or public.pf_is_admin(auth.uid())
 );
+
+create or replace function public.pf_touch_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+drop trigger if exists pf_user_settings_touch on public.pf_user_settings;
+create trigger pf_user_settings_touch
+before update on public.pf_user_settings
+for each row execute function public.pf_touch_updated_at();
+
+drop trigger if exists pf_collections_touch on public.pf_collections;
+create trigger pf_collections_touch
+before update on public.pf_collections
+for each row execute function public.pf_touch_updated_at();
+
+drop trigger if exists pf_environments_touch on public.pf_environments;
+create trigger pf_environments_touch
+before update on public.pf_environments
+for each row execute function public.pf_touch_updated_at();
+
+drop trigger if exists pf_workspaces_touch on public.pf_workspaces;
+create trigger pf_workspaces_touch
+before update on public.pf_workspaces
+for each row execute function public.pf_touch_updated_at();
+
+drop trigger if exists pf_workspace_members_touch on public.pf_workspace_members;
+create trigger pf_workspace_members_touch
+before update on public.pf_workspace_members
+for each row execute function public.pf_touch_updated_at();
+
+drop trigger if exists pf_workspace_collections_touch on public.pf_workspace_collections;
+create trigger pf_workspace_collections_touch
+before update on public.pf_workspace_collections
+for each row execute function public.pf_touch_updated_at();
+
+drop trigger if exists pf_collection_drafts_touch on public.pf_collection_drafts;
+create trigger pf_collection_drafts_touch
+before update on public.pf_collection_drafts
+for each row execute function public.pf_touch_updated_at();

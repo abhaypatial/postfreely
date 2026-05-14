@@ -126,9 +126,7 @@ window.PostFreelyCloudAPI = (() => {
       username: row.username || authUsername(fallbackUser || row),
       provider: row.provider || authProvider(fallbackUser || row),
       role,
-      permissions: role === 'owner'
-        ? { read: true, write: true, run: true, manage: true }
-        : (members.find(member => member.user_id === actorId())?.permissions || {}),
+      permissions: { read: true, write: true, run: true, manage: role === 'admin' },
       is_admin: role === 'admin',
     };
   }
