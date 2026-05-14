@@ -80,6 +80,7 @@ create table if not exists public.pf_workspace_members (
   user_id uuid,
   email text not null,
   role text not null default 'collaborator',
+  permissions jsonb not null default '{"read": true, "write": true, "run": true, "manage": false}'::jsonb,
   status text not null default 'active',
   added_by uuid,
   created_at timestamptz not null default now(),
@@ -92,6 +93,9 @@ create index if not exists pf_workspace_members_user_idx
 
 create index if not exists pf_workspace_members_workspace_idx
   on public.pf_workspace_members (workspace_id, role, status);
+
+alter table public.pf_workspace_members
+  add column if not exists permissions jsonb not null default '{"read": true, "write": true, "run": true, "manage": false}'::jsonb;
 
 create table if not exists public.pf_workspace_collections (
   id uuid primary key,
@@ -192,6 +196,23 @@ as $$
   select public.pf_workspace_role(workspace, user_id) in ('owner', 'admin');
 $$;
 
+create or replace function public.pf_workspace_has_permission(workspace uuid, user_id uuid, permission text)
+returns boolean
+language sql
+stable
+as $$
+  select
+    public.pf_workspace_is_admin(workspace, user_id)
+    or exists (
+      select 1
+      from public.pf_workspace_members m
+      where m.workspace_id = workspace
+        and m.user_id = user_id
+        and m.status = 'active'
+        and coalesce((m.permissions ->> permission)::boolean, false)
+    );
+$$;
+
 create or replace function public.pf_apply_profile_defaults()
 returns trigger
 language plpgsql
@@ -259,6 +280,63 @@ on public.pf_collections
 for all
 using (owner_id = auth.uid() or public.pf_is_admin(auth.uid()))
 with check (owner_id = auth.uid() or public.pf_is_admin(auth.uid()));
+
+drop policy if exists "pf_collections_select_workspace_members" on public.pf_collections;
+create policy "pf_collections_select_workspace_members"
+on public.pf_collections
+for select
+using (
+  owner_id = auth.uid()
+  or public.pf_is_admin(auth.uid())
+  or exists (
+    select 1
+    from public.pf_workspace_collections wc
+    where wc.collection_id = pf_collections.id
+      and public.pf_workspace_has_permission(wc.workspace_id, auth.uid(), 'write')
+  )
+);
+
+create or replace function public.pf_preserve_shared_collection_variables()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if old.owner_id <> auth.uid() and not public.pf_is_admin(auth.uid()) then
+    new.owner_id := old.owner_id;
+    new.variables := old.variables;
+  end if;
+  new.updated_at := now();
+  return new;
+end;
+$$;
+
+drop trigger if exists pf_preserve_shared_collection_variables_trg on public.pf_collections;
+create trigger pf_preserve_shared_collection_variables_trg
+before update on public.pf_collections
+for each row execute function public.pf_preserve_shared_collection_variables();
+
+drop policy if exists "pf_collections_update_workspace_members_without_variables" on public.pf_collections;
+create policy "pf_collections_update_workspace_members_without_variables"
+on public.pf_collections
+for update
+using (
+  exists (
+    select 1
+    from public.pf_workspace_collections wc
+    where wc.collection_id = pf_collections.id
+      and public.pf_workspace_has_permission(wc.workspace_id, auth.uid(), 'write')
+  )
+)
+with check (
+  exists (
+    select 1
+    from public.pf_workspace_collections wc
+    where wc.collection_id = pf_collections.id
+      and public.pf_workspace_has_permission(wc.workspace_id, auth.uid(), 'read')
+  )
+);
 
 drop policy if exists "pf_environments_rw_owner_or_admin" on public.pf_environments;
 create policy "pf_environments_rw_owner_or_admin"
@@ -343,7 +421,7 @@ create policy "pf_workspace_collections_select_members"
 on public.pf_workspace_collections
 for select
 using (
-  public.pf_workspace_is_member(workspace_id, auth.uid())
+  public.pf_workspace_has_permission(workspace_id, auth.uid(), 'read')
   or public.pf_is_admin(auth.uid())
 );
 
@@ -352,11 +430,11 @@ create policy "pf_workspace_collections_manage_members"
 on public.pf_workspace_collections
 for all
 using (
-  public.pf_workspace_is_member(workspace_id, auth.uid())
+  public.pf_workspace_has_permission(workspace_id, auth.uid(), 'manage')
   or public.pf_is_admin(auth.uid())
 )
 with check (
-  public.pf_workspace_is_member(workspace_id, auth.uid())
+  public.pf_workspace_has_permission(workspace_id, auth.uid(), 'manage')
   or public.pf_is_admin(auth.uid())
 );
 

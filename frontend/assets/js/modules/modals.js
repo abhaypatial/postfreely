@@ -464,6 +464,177 @@ function exportCollectionFromOverview() {
   showToast(`Exported ${col.name}`);
 }
 
+// ── TEAM WORKSPACES ─────────────────────────────────────────────
+function activeTeamWorkspace() {
+  return (State.workspaces || []).find(workspace => workspace.id === State.activeWorkspaceId) || null;
+}
+
+function teamPermissionPayload(scope = document) {
+  const result = {};
+  scope.querySelectorAll('[data-team-perm]').forEach(input => {
+    result[input.dataset.teamPerm] = !!input.checked;
+  });
+  return result;
+}
+
+function openTeamModal() {
+  openModal('team-modal');
+  document.getElementById('team-err').textContent = '';
+  loadTeamWorkspaces().catch(error => {
+    document.getElementById('team-err').textContent = error.message || String(error);
+    renderTeamModal();
+  });
+}
+
+function renderTeamModal() {
+  const modal = document.getElementById('team-modal');
+  if (!modal) return;
+  const list = document.getElementById('team-list');
+  const detail = document.getElementById('team-detail');
+  const empty = document.getElementById('team-empty');
+  const workspaces = State.workspaces || [];
+  const active = activeTeamWorkspace();
+
+  list.innerHTML = workspaces.length
+    ? workspaces.map(workspace => `
+      <button class="team-item ${workspace.id === State.activeWorkspaceId ? 'active' : ''}" data-team-id="${esc(workspace.id)}" type="button">
+        <strong>${esc(workspace.name)}</strong>
+        <small>${esc(workspace.role || 'collaborator')} · ${(workspace.members || []).length} member(s) · ${(workspace.collections || []).length} collection(s)</small>
+      </button>`).join('')
+    : '<div class="info-box">No team workspaces yet.</div>';
+
+  list.querySelectorAll('[data-team-id]').forEach(button => {
+    button.addEventListener('click', () => {
+      State.activeWorkspaceId = button.dataset.teamId;
+      renderTeamModal();
+    });
+  });
+
+  empty.style.display = active ? 'none' : '';
+  detail.style.display = active ? '' : 'none';
+  if (!active) return;
+
+  document.getElementById('team-detail-name').textContent = active.name || 'Team Workspace';
+  document.getElementById('team-detail-meta').textContent = `${active.role || 'collaborator'} · variables stay private`;
+
+  const canManage = ['owner', 'admin'].includes(active.role);
+  document.getElementById('team-invite-btn').disabled = !canManage;
+  document.getElementById('team-email-inp').disabled = !canManage;
+  document.getElementById('team-role-sel').disabled = !canManage;
+
+  const members = active.members || [];
+  document.getElementById('team-members-list').innerHTML = members.length
+    ? members.map(member => `
+      <div class="team-card-row">
+        <div class="team-card-row-main">
+          <strong>${esc(member.email || member.user_id || 'Member')}</strong>
+          <small>${esc(member.role || 'collaborator')} · ${esc(member.status || 'active')}</small>
+          ${member.role !== 'owner' ? `
+            <div class="team-member-perms" data-member-perms="${esc(member.id)}">
+              ${['read', 'write', 'run', 'manage'].map(permission => `
+                <label><input type="checkbox" data-team-perm="${permission}" ${(member.permissions || {})[permission] ? 'checked' : ''} ${canManage ? '' : 'disabled'}/> ${permission}</label>
+              `).join('')}
+            </div>` : ''}
+        </div>
+        ${canManage && member.role !== 'owner' ? `
+          <div class="team-row-actions">
+            <button class="req-action-btn" data-team-save-member="${esc(member.id)}" type="button">Save</button>
+            <button class="req-action-btn danger" data-team-remove-member="${esc(member.id)}" type="button">Remove</button>
+          </div>` : ''}
+      </div>`).join('')
+    : '<div class="info-box">No members yet.</div>';
+
+  const sharedIds = new Set((active.collections || []).map(link => link.collection_id));
+  const personalCollections = Object.values(State.collections || {});
+  document.getElementById('team-share-coll-list').innerHTML = personalCollections.length
+    ? personalCollections
+        .filter(collection => !collection.shared)
+        .map(collection => `
+          <label class="team-check-row">
+            <input type="checkbox" data-team-share-coll="${esc(collection.id)}" ${sharedIds.has(collection.id) ? 'checked' : ''}/>
+            <span>${esc(collection.name)}</span>
+          </label>`)
+        .join('')
+    : '<div class="info-box">No collections available.</div>';
+
+  document.getElementById('team-collections-list').innerHTML = sharedIds.size
+    ? [...sharedIds].map(collectionId => {
+      const collection = State.collections[collectionId];
+      return `
+        <div class="team-card-row">
+          <div class="team-card-row-main">
+            <strong>${esc(collection?.name || collectionId)}</strong>
+            <small>${collection ? `${(collection.requests || []).length} request(s)` : 'Shared collection'}</small>
+          </div>
+          <button class="req-action-btn danger" data-team-unshare="${esc(collectionId)}" type="button">Unshare</button>
+        </div>`;
+    }).join('')
+    : '<div class="info-box">No collections shared yet.</div>';
+
+  document.querySelectorAll('[data-team-remove-member]').forEach(button => {
+    button.addEventListener('click', async () => {
+      await API.removeWorkspaceMember(active.id, button.dataset.teamRemoveMember);
+      await loadTeamWorkspaces();
+    });
+  });
+  document.querySelectorAll('[data-team-save-member]').forEach(button => {
+    button.addEventListener('click', async () => {
+      const member = members.find(item => item.id === button.dataset.teamSaveMember);
+      const permissionsEl = document.querySelector(`[data-member-perms="${CSS.escape(button.dataset.teamSaveMember)}"]`);
+      await API.updateWorkspaceMember(active.id, button.dataset.teamSaveMember, {
+        role: member?.role || 'collaborator',
+        permissions: teamPermissionPayload(permissionsEl || document),
+      });
+      await loadTeamWorkspaces();
+      showToast('Permissions saved');
+    });
+  });
+  document.querySelectorAll('[data-team-unshare]').forEach(button => {
+    button.addEventListener('click', async () => {
+      await API.unshareWorkspaceCollection(active.id, button.dataset.teamUnshare);
+      await loadTeamWorkspaces();
+    });
+  });
+}
+
+async function createTeamWorkspace() {
+  const input = document.getElementById('team-name-inp');
+  const name = input.value.trim();
+  if (!name) return;
+  const workspace = await API.createWorkspace({ name });
+  if (workspace?.error) throw new Error(workspace.error);
+  input.value = '';
+  State.activeWorkspaceId = workspace.id;
+  await loadTeamWorkspaces();
+  showToast('Team workspace created');
+}
+
+async function inviteTeamMember() {
+  const active = activeTeamWorkspace();
+  if (!active) return;
+  const email = document.getElementById('team-email-inp').value.trim();
+  const role = document.getElementById('team-role-sel').value || 'collaborator';
+  const permissions = teamPermissionPayload(document.getElementById('team-invite-permissions'));
+  if (!email) return;
+  const result = await API.inviteWorkspaceMember(active.id, { email, role, permissions });
+  if (result?.error) throw new Error(result.error);
+  document.getElementById('team-email-inp').value = '';
+  await loadTeamWorkspaces();
+  showToast('Member invited');
+}
+
+async function shareTeamCollection() {
+  const active = activeTeamWorkspace();
+  const collectionIds = [...document.querySelectorAll('[data-team-share-coll]:checked')].map(input => input.dataset.teamShareColl);
+  if (!active || !collectionIds.length) return;
+  for (const collectionId of collectionIds) {
+    const result = await API.shareWorkspaceCollection(active.id, collectionId);
+    if (result?.error) throw new Error(result.error);
+  }
+  await loadTeamWorkspaces();
+  showToast(`${collectionIds.length} collection(s) shared with team`);
+}
+
 // ── THEME ─────────────────────────────────────────────────────
 const THEMES = [
   { id:'graphite',  name:'Signal Black',  colors:['#0a0f17','#56f1cb','#79a7ff'], desc:'deep control room glass with cold electric highlights' },

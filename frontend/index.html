@@ -22,6 +22,7 @@
           <button class="tb-btn" id="hist-btn">History</button>
           <button class="tb-btn" id="ai-config-btn">AI Config</button>
           <button class="tb-btn" id="theme-btn">Appearance</button>
+          <button class="tb-btn" id="team-btn">Team</button>
           <button class="tb-btn" id="runner-btn">Runner</button>
           <button class="tb-btn" id="sidebar-reopen" title="Show collections" style="display:none; align-items:center; gap:6px;">
             <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -32,6 +33,12 @@
           </button>
         </div>
         <div class="tb-actions-cluster tb-actions-meta">
+          <div id="workspace-select-wrap">
+            <span class="tb-meta-icon" aria-hidden="true"></span>
+            <select id="workspace-sel">
+              <option value="">Personal</option>
+            </select>
+          </div>
           <div id="admin-scope-wrap" style="display:none">
             <span class="tb-meta-icon" aria-hidden="true"></span>
             <select id="admin-scope-sel"></select>
@@ -257,6 +264,68 @@
     <div class="modal-foot">
       <button class="btn-ghost" onclick="API.clearHistory().then(()=>{document.getElementById('hist-list').innerHTML='<div style=padding:20px;text-align:center;color:var(--text3)>Cleared</div>'})">Clear All</button>
       <button class="btn-ghost" data-close-modal="history-modal">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- TEAM / WORKSPACES -->
+<div class="overlay" id="team-modal">
+  <div class="modal team-modal">
+    <div class="modal-hd">
+      <h2>Team <span>Workspaces</span></h2>
+      <button class="modal-close" data-close-modal="team-modal">×</button>
+    </div>
+    <div class="team-shell">
+      <div class="team-sidebar">
+        <div class="team-create-row">
+          <input id="team-name-inp" type="text" placeholder="New team name"/>
+          <button class="btn-primary" id="team-create-btn">Create</button>
+        </div>
+        <div id="team-list" class="team-list"></div>
+      </div>
+      <div class="team-main">
+        <div id="team-empty" class="info-box">Create or select a team workspace. Shared requests can be collaborated on, but collection and environment variables remain private.</div>
+        <div id="team-detail" style="display:none">
+          <div class="team-detail-head">
+            <div>
+              <div class="modal-kicker">Selected Team</div>
+              <h3 id="team-detail-name"></h3>
+              <p id="team-detail-meta"></p>
+            </div>
+          </div>
+          <div class="team-grid">
+            <section>
+              <h4>Members</h4>
+              <div class="team-invite-row">
+                <input id="team-email-inp" type="email" placeholder="teammate@example.com"/>
+                <select id="team-role-sel">
+                  <option value="collaborator">Collaborator</option>
+                  <option value="admin">Admin</option>
+                </select>
+                <button class="btn-primary" id="team-invite-btn">Invite</button>
+              </div>
+              <div class="team-permissions" id="team-invite-permissions">
+                <label><input type="checkbox" data-team-perm="read" checked/> Read</label>
+                <label><input type="checkbox" data-team-perm="write" checked/> Edit</label>
+                <label><input type="checkbox" data-team-perm="run" checked/> Run</label>
+                <label><input type="checkbox" data-team-perm="manage"/> Manage</label>
+              </div>
+              <div id="team-members-list" class="team-card-list"></div>
+            </section>
+            <section>
+              <h4>Shared Collections</h4>
+              <div id="team-share-coll-list" class="team-check-list"></div>
+              <button class="btn-primary" id="team-share-coll-btn">Share Selected</button>
+              <div id="team-collections-list" class="team-card-list"></div>
+            </section>
+          </div>
+          <div class="info-box team-note">Variables are deliberately not shared or promoted. Team members collaborate on request definitions, scripts, docs, and AI sources while keeping their own collection/environment variables.</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <div class="modal-err" id="team-err" style="flex:1;margin:0"></div>
+      <button class="btn-ghost" data-close-modal="team-modal">Close</button>
     </div>
   </div>
 </div>

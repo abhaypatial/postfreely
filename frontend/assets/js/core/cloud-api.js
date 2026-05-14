@@ -126,6 +126,9 @@ window.PostFreelyCloudAPI = (() => {
       username: row.username || authUsername(fallbackUser || row),
       provider: row.provider || authProvider(fallbackUser || row),
       role,
+      permissions: role === 'owner'
+        ? { read: true, write: true, run: true, manage: true }
+        : (members.find(member => member.user_id === actorId())?.permissions || {}),
       is_admin: role === 'admin',
     };
   }
@@ -217,6 +220,7 @@ window.PostFreelyCloudAPI = (() => {
       allow_ai_doc_fetch: !!row.allow_ai_doc_fetch,
       ai_sources: row.ai_sources || [],
       owner_id: row.owner_id || '',
+      shared: !!row.shared,
     };
   }
 
@@ -321,9 +325,24 @@ window.PostFreelyCloudAPI = (() => {
   async function getCollections() {
     const ownerId = requireWorkspaceOwnerId();
     await ensureWorkspace(ownerId);
-    const rows = await select('pf_collections', { select: '*', owner_id: `eq.${ownerId}`, order: 'created_at.asc' });
+    const ownedRows = await select('pf_collections', { select: '*', owner_id: `eq.${ownerId}`, order: 'created_at.asc' });
+    let rows = ownedRows;
+    const userId = actorId();
+    if (userId && ownerId === userId) {
+      const memberships = await select('pf_workspace_members', { select: 'workspace_id', user_id: `eq.${userId}`, status: 'eq.active' });
+      const workspaceIds = [...new Set(memberships.map(row => row.workspace_id).filter(Boolean))];
+      if (workspaceIds.length) {
+        const links = await select('pf_workspace_collections', { select: 'collection_id', workspace_id: `in.(${workspaceIds.join(',')})` });
+        const sharedIds = [...new Set(links.map(row => row.collection_id).filter(Boolean))].filter(id => !ownedRows.some(row => row.id === id));
+        if (sharedIds.length) {
+          const sharedRows = await select('pf_collections', { select: '*', id: `in.(${sharedIds.join(',')})`, order: 'created_at.asc' });
+          rows = [...ownedRows, ...sharedRows.map(row => ({ ...row, shared: true }))];
+        }
+      }
+    }
     return rows.reduce((acc, row) => {
       acc[row.id] = collectionRow(row);
+      if (row.shared) acc[row.id].shared = true;
       return acc;
     }, {});
   }
@@ -333,7 +352,7 @@ window.PostFreelyCloudAPI = (() => {
     const legacy = PostFreelyCloudImport.legacyAiFields(aiSources, input);
     const payload = {
       id: input.id || PostFreelyCloudImport.uuid(),
-      owner_id: ownerId,
+      owner_id: input.owner_id || ownerId,
       name: input.name || 'New Collection',
       description: input.description || '',
       variables: input.variables || {},
@@ -351,19 +370,24 @@ window.PostFreelyCloudAPI = (() => {
 
   async function getCollection(collectionId) {
     const ownerId = requireWorkspaceOwnerId();
-    const rows = await select('pf_collections', { select: '*', id: `eq.${collectionId}`, owner_id: `eq.${ownerId}`, limit: '1' });
+    const rows = await select('pf_collections', { select: '*', id: `eq.${collectionId}`, limit: '1' });
+    if (rows[0] && rows[0].owner_id !== ownerId && rows[0].owner_id !== actorId()) rows[0].shared = true;
     return rows[0] ? collectionRow(rows[0]) : null;
   }
 
   async function updateCollection(id, updates = {}) {
     const current = await getCollection(id);
     if (!current) return { error: 'Not found' };
+    const safeUpdates = current.shared
+      ? Object.fromEntries(Object.entries(updates || {}).filter(([key]) => key !== 'variables'))
+      : updates;
     return saveCollection({
       ...current,
-      ...updates,
-      ai_sources: Object.prototype.hasOwnProperty.call(updates, 'ai_sources') ? updates.ai_sources : current.ai_sources,
+      ...safeUpdates,
+      ai_sources: Object.prototype.hasOwnProperty.call(safeUpdates, 'ai_sources') ? safeUpdates.ai_sources : current.ai_sources,
+      variables: current.shared ? current.variables : (safeUpdates.variables || current.variables),
       created: current.created,
-    });
+    }, current.owner_id || requireWorkspaceOwnerId());
   }
 
   async function deleteCollection(id) {
@@ -650,6 +674,134 @@ window.PostFreelyCloudAPI = (() => {
   async function getAdminUsers() {
     const rows = await select('pf_profiles', { select: 'id,email,username,provider,role,created_at', order: 'created_at.asc' });
     return rows.map(row => sanitizeProfile(row));
+  }
+
+  function workspaceRow(row = {}, members = [], collections = []) {
+    const role = row.owner_id === actorId()
+      ? 'owner'
+      : (members.find(member => member.user_id === actorId())?.role || 'collaborator');
+    return {
+      id: row.id,
+      name: row.name || 'Team Workspace',
+      description: row.description || '',
+      owner_id: row.owner_id || '',
+      role,
+      members,
+      collections,
+      created_at: row.created_at || '',
+      updated_at: row.updated_at || '',
+    };
+  }
+
+  async function getWorkspaces() {
+    const userId = requireActorId();
+    const [owned, memberships] = await Promise.all([
+      select('pf_workspaces', { select: '*', owner_id: `eq.${userId}`, order: 'created_at.asc' }),
+      select('pf_workspace_members', { select: '*', user_id: `eq.${userId}`, status: 'eq.active' }),
+    ]);
+    const ids = [...new Set([...owned.map(row => row.id), ...memberships.map(row => row.workspace_id)])].filter(Boolean);
+    if (!ids.length) return [];
+    const workspaces = owned.length === ids.length
+      ? owned
+      : await select('pf_workspaces', { select: '*', id: `in.(${ids.join(',')})`, order: 'created_at.asc' });
+    const [allMembers, allLinks] = await Promise.all([
+      select('pf_workspace_members', { select: '*', workspace_id: `in.(${ids.join(',')})`, order: 'created_at.asc' }),
+      select('pf_workspace_collections', { select: '*', workspace_id: `in.(${ids.join(',')})`, order: 'created_at.asc' }),
+    ]);
+    return workspaces.map(row => workspaceRow(
+      row,
+      allMembers.filter(member => member.workspace_id === row.id),
+      allLinks.filter(link => link.workspace_id === row.id),
+    ));
+  }
+
+  async function createWorkspace(payload = {}) {
+    const owner = requireActorId();
+    const row = {
+      id: PostFreelyCloudImport.uuid(),
+      owner_id: owner,
+      name: payload.name || 'New Team',
+      description: payload.description || '',
+      created_at: PostFreelyCloudImport.nowIso(),
+      updated_at: PostFreelyCloudImport.nowIso(),
+    };
+    const rows = await insert('pf_workspaces', [row], { prefer: 'return=representation' });
+    const workspace = (Array.isArray(rows) ? rows[0] : rows) || row;
+    await insert('pf_workspace_members', [{
+      id: PostFreelyCloudImport.uuid(),
+      workspace_id: workspace.id,
+      user_id: owner,
+      email: (typeof State !== 'undefined' && State.currentUser?.email) || '',
+      role: 'owner',
+      permissions: { read: true, write: true, run: true, manage: true },
+      status: 'active',
+      added_by: owner,
+      created_at: PostFreelyCloudImport.nowIso(),
+      updated_at: PostFreelyCloudImport.nowIso(),
+    }], { prefer: 'resolution=merge-duplicates,return=representation' });
+    return workspaceRow(workspace, [], []);
+  }
+
+  async function updateWorkspace(id, payload = {}) {
+    const rows = await patch('pf_workspaces', {
+      name: payload.name || 'Team Workspace',
+      description: payload.description || '',
+      updated_at: PostFreelyCloudImport.nowIso(),
+    }, { id: `eq.${id}` });
+    return workspaceRow((Array.isArray(rows) ? rows[0] : rows) || {});
+  }
+
+  async function inviteWorkspaceMember(workspaceId, payload = {}) {
+    const email = normalizedEmail(payload.email);
+    if (!email) return { error: 'Email required' };
+    const profiles = await select('pf_profiles', { select: 'id,email', email: `eq.${email}`, limit: '1' });
+    const member = {
+      id: PostFreelyCloudImport.uuid(),
+      workspace_id: workspaceId,
+      user_id: profiles[0]?.id || null,
+      email,
+      role: ['owner', 'admin', 'collaborator'].includes(payload.role) && payload.role !== 'owner' ? payload.role : 'collaborator',
+      permissions: payload.permissions || { read: true, write: true, run: true, manage: false },
+      status: profiles[0]?.id ? 'active' : 'invited',
+      added_by: requireActorId(),
+      created_at: PostFreelyCloudImport.nowIso(),
+      updated_at: PostFreelyCloudImport.nowIso(),
+    };
+    const rows = await insert('pf_workspace_members', [member], { prefer: 'resolution=merge-duplicates,return=representation' });
+    return (Array.isArray(rows) ? rows[0] : rows) || member;
+  }
+
+  async function removeWorkspaceMember(workspaceId, memberId) {
+    await remove('pf_workspace_members', { workspace_id: `eq.${workspaceId}`, id: `eq.${memberId}`, role: 'neq.owner' });
+    return { ok: true };
+  }
+
+  async function updateWorkspaceMember(workspaceId, memberId, payload = {}) {
+    const values = {
+      role: ['admin', 'collaborator'].includes(payload.role) ? payload.role : 'collaborator',
+      permissions: payload.permissions || {},
+      updated_at: PostFreelyCloudImport.nowIso(),
+    };
+    const rows = await patch('pf_workspace_members', values, { workspace_id: `eq.${workspaceId}`, id: `eq.${memberId}`, role: 'neq.owner' });
+    return (Array.isArray(rows) ? rows[0] : rows) || values;
+  }
+
+  async function shareWorkspaceCollection(workspaceId, collectionId) {
+    const link = {
+      id: PostFreelyCloudImport.uuid(),
+      workspace_id: workspaceId,
+      collection_id: collectionId,
+      added_by: requireActorId(),
+      created_at: PostFreelyCloudImport.nowIso(),
+      updated_at: PostFreelyCloudImport.nowIso(),
+    };
+    const rows = await insert('pf_workspace_collections', [link], { prefer: 'resolution=merge-duplicates,return=representation' });
+    return (Array.isArray(rows) ? rows[0] : rows) || link;
+  }
+
+  async function unshareWorkspaceCollection(workspaceId, collectionId) {
+    await remove('pf_workspace_collections', { workspace_id: `eq.${workspaceId}`, collection_id: `eq.${collectionId}` });
+    return { ok: true };
   }
 
   function clipText(value, limit = 4000) {
@@ -1101,6 +1253,14 @@ window.PostFreelyCloudAPI = (() => {
     me,
     getGoogleAuthUrl: googleUrl,
     getAdminUsers,
+    getWorkspaces,
+    createWorkspace,
+    updateWorkspace,
+    inviteWorkspaceMember,
+    removeWorkspaceMember,
+    updateWorkspaceMember,
+    shareWorkspaceCollection,
+    unshareWorkspaceCollection,
     sendProxyRequest: proxyError,
     runCollection: () => unsupported('Cloud runner jobs are disabled in the static Pages deployment. Use the browser runner.'),
     getCollectionRun: () => unsupported('Cloud runner jobs are disabled in the static Pages deployment.'),

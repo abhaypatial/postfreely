@@ -1,6 +1,7 @@
 /* PostFreely - API client */
 const POSTFREELY_SESSION_KEY = 'postfreely.session.v1';
 const POSTFREELY_VIEW_OWNER_KEY = 'postfreely.view-owner.v1';
+const POSTFREELY_LOCAL_TEAMS_KEY = 'postfreely.local-teams.v1';
 const POSTFREELY_CONFIG = window.POSTFREELY_CONFIG || {};
 const BROWSER_SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 const FORBIDDEN_BROWSER_HEADERS = new Set([
@@ -327,6 +328,112 @@ function compatibilityFromPayload(payload) {
   return compatibilityStatus('untested', 'Browser compatibility has not been checked yet.');
 }
 
+function localTeamStore() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(POSTFREELY_LOCAL_TEAMS_KEY) || '[]');
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function saveLocalTeamStore(teams) {
+  localStorage.setItem(POSTFREELY_LOCAL_TEAMS_KEY, JSON.stringify(Array.isArray(teams) ? teams : []));
+}
+
+async function listLocalWorkspaces() {
+  return localTeamStore();
+}
+
+async function createLocalWorkspace(payload = {}) {
+  const teams = localTeamStore();
+  const team = {
+    id: crypto.randomUUID ? crypto.randomUUID() : `team-${Date.now()}`,
+    name: payload.name || 'New Team',
+    role: 'owner',
+    permissions: { read: true, write: true, run: true, manage: true },
+    owner_id: 'local',
+    members: [{ id: 'local-owner', email: 'you@local', role: 'owner', status: 'active', permissions: { read: true, write: true, run: true, manage: true } }],
+    collections: [],
+    created_at: new Date().toISOString(),
+  };
+  teams.push(team);
+  saveLocalTeamStore(teams);
+  return team;
+}
+
+async function updateLocalWorkspace(id, payload = {}) {
+  const teams = localTeamStore();
+  const team = teams.find(item => item.id === id);
+  if (!team) return { error: 'Workspace not found' };
+  Object.assign(team, payload, { updated_at: new Date().toISOString() });
+  saveLocalTeamStore(teams);
+  return team;
+}
+
+async function inviteLocalWorkspaceMember(workspaceId, payload = {}) {
+  const teams = localTeamStore();
+  const team = teams.find(item => item.id === workspaceId);
+  if (!team) return { error: 'Workspace not found' };
+  const email = String(payload.email || '').trim().toLowerCase();
+  if (!email) return { error: 'Email required' };
+  team.members = team.members || [];
+  const existing = team.members.find(member => member.email === email);
+  const permissions = payload.permissions || { read: true, write: true, run: true, manage: false };
+  if (existing) {
+    existing.role = payload.role || existing.role || 'collaborator';
+    existing.permissions = permissions;
+  } else {
+    team.members.push({ id: crypto.randomUUID ? crypto.randomUUID() : `member-${Date.now()}`, email, role: payload.role || 'collaborator', status: 'invited', permissions });
+  }
+  saveLocalTeamStore(teams);
+  return team.members.find(member => member.email === email);
+}
+
+async function removeLocalWorkspaceMember(workspaceId, memberId) {
+  const teams = localTeamStore();
+  const team = teams.find(item => item.id === workspaceId);
+  if (!team) return { error: 'Workspace not found' };
+  team.members = (team.members || []).filter(member => member.id !== memberId && member.role !== 'owner');
+  saveLocalTeamStore(teams);
+  return { ok: true };
+}
+
+async function updateLocalWorkspaceMember(workspaceId, memberId, payload = {}) {
+  const teams = localTeamStore();
+  const team = teams.find(item => item.id === workspaceId);
+  if (!team) return { error: 'Workspace not found' };
+  const member = (team.members || []).find(item => item.id === memberId);
+  if (!member) return { error: 'Member not found' };
+  if (member.role !== 'owner') {
+    member.role = payload.role || member.role || 'collaborator';
+    member.permissions = payload.permissions || member.permissions || {};
+  }
+  saveLocalTeamStore(teams);
+  return member;
+}
+
+async function shareLocalWorkspaceCollection(workspaceId, collectionId) {
+  const teams = localTeamStore();
+  const team = teams.find(item => item.id === workspaceId);
+  if (!team) return { error: 'Workspace not found' };
+  team.collections = team.collections || [];
+  if (!team.collections.some(item => item.collection_id === collectionId)) {
+    team.collections.push({ id: crypto.randomUUID ? crypto.randomUUID() : `wc-${Date.now()}`, collection_id: collectionId, created_at: new Date().toISOString() });
+  }
+  saveLocalTeamStore(teams);
+  return team.collections.find(item => item.collection_id === collectionId);
+}
+
+async function unshareLocalWorkspaceCollection(workspaceId, collectionId) {
+  const teams = localTeamStore();
+  const team = teams.find(item => item.id === workspaceId);
+  if (!team) return { error: 'Workspace not found' };
+  team.collections = (team.collections || []).filter(item => item.collection_id !== collectionId);
+  saveLocalTeamStore(teams);
+  return { ok: true };
+}
+
 function shouldUseBrowser(payload = {}) {
   const transport = String(payload.transport_mode || 'auto').toLowerCase();
   const compat = compatibilityFromPayload(payload);
@@ -529,6 +636,16 @@ const API = {
 
   // Admin
   getAdminUsers:         ()      => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.getAdminUsers() : request('GET', '/api/admin/users', undefined, { scoped: false }),
+
+  // Teams / workspaces
+  getWorkspaces:         ()      => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.getWorkspaces() : listLocalWorkspaces(),
+  createWorkspace:       (d)     => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.createWorkspace(d || {}) : createLocalWorkspace(d || {}),
+  updateWorkspace:       (id,d)  => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.updateWorkspace(id, d || {}) : updateLocalWorkspace(id, d || {}),
+  inviteWorkspaceMember: (id,d)  => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.inviteWorkspaceMember(id, d || {}) : inviteLocalWorkspaceMember(id, d || {}),
+  removeWorkspaceMember: (id,mid)=> isSupabaseCloudMode() ? window.PostFreelyCloudAPI.removeWorkspaceMember(id, mid) : removeLocalWorkspaceMember(id, mid),
+  updateWorkspaceMember: (id,mid,d)=> isSupabaseCloudMode() ? window.PostFreelyCloudAPI.updateWorkspaceMember(id, mid, d || {}) : updateLocalWorkspaceMember(id, mid, d || {}),
+  shareWorkspaceCollection: (id,cid) => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.shareWorkspaceCollection(id, cid) : shareLocalWorkspaceCollection(id, cid),
+  unshareWorkspaceCollection: (id,cid) => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.unshareWorkspaceCollection(id, cid) : unshareLocalWorkspaceCollection(id, cid),
 
   // AI
   aiChat:                (d)     => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.aiChat(d || {}) : request('POST', '/api/ai/chat', d),

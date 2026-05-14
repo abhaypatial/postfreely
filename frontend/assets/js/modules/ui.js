@@ -562,7 +562,15 @@ function renderSidebar(filter = '') {
     list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">No collections yet.<br><br>Import JSON / cURL or create one.</div>';
     return;
   }
+  let renderedCount = 0;
   cols.forEach(col => {
+    if (State.activeWorkspaceScope && State.activeWorkspaceScope !== 'personal') {
+      const workspace = (State.workspaces || []).find(item => item.id === State.activeWorkspaceScope);
+      const sharedIds = new Set((workspace?.collections || []).map(link => link.collection_id));
+      if (!sharedIds.has(col.id)) return;
+    } else if (col.shared) {
+      return;
+    }
     const reqs = (col.requests || []).filter(r =>
       !filter || r.name.toLowerCase().includes(filter.toLowerCase()) ||
                  r.url.toLowerCase().includes(filter.toLowerCase()));
@@ -669,7 +677,11 @@ function renderSidebar(filter = '') {
     });
 
     list.appendChild(group);
+    renderedCount++;
   });
+  if (!renderedCount) {
+    list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px">No collections in this workspace yet.<br><br>Use Team to share collections here.</div>';
+  }
 }
 
 function exportSavedRequest(collection, request) {
@@ -959,8 +971,9 @@ function shouldShowVariableTokenHighlight(field) {
   if (!(field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement)) return false;
   if (field instanceof HTMLInputElement && (field.type === 'password' || field.type === 'hidden')) return false;
   if (!field.isConnected || field.offsetParent === null) return false;
+  if (field.id === 'prescript-ta' || field.id === 'postscript-ta') return false;
   const val = String(field.value || '');
-  return val.includes('{{') || ((field.id === 'prescript-ta' || field.id === 'postscript-ta') && (val.includes('//') || val.includes('/*')));
+  return val.includes('{{');
 }
 
 function getPreferredVariableHighlightField() {

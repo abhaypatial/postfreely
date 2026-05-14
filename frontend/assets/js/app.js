@@ -246,6 +246,9 @@ function restoreWorkspace() {
 function resetWorkspaceData() {
   State.collections = {};
   State.environments = { envs: {}, active: null };
+  State.workspaces = [];
+  State.activeWorkspaceId = '';
+  State.activeWorkspaceScope = 'personal';
   renderEnvStrip();
   renderSidebar();
 }
@@ -393,6 +396,34 @@ async function loadWorkspaceData() {
   State.environments = envs && envs.active !== undefined ? envs : { envs: {}, active: null };
   renderEnvStrip();
   renderSidebar(document.getElementById('sb-search-inp')?.value || '');
+  renderWorkspaceSelector();
+}
+
+async function loadTeamWorkspaces() {
+  const workspaces = await API.getWorkspaces();
+  State.workspaces = Array.isArray(workspaces) ? workspaces : [];
+  if (State.activeWorkspaceId && !State.workspaces.some(workspace => workspace.id === State.activeWorkspaceId)) {
+    State.activeWorkspaceId = '';
+  }
+  if (!State.activeWorkspaceId && State.workspaces.length) {
+    State.activeWorkspaceId = State.workspaces[0].id;
+  }
+  if (State.activeWorkspaceScope !== 'personal' && !State.workspaces.some(workspace => workspace.id === State.activeWorkspaceScope)) {
+    State.activeWorkspaceScope = 'personal';
+  }
+  renderWorkspaceSelector();
+  renderTeamModal();
+}
+
+function renderWorkspaceSelector() {
+  const select = document.getElementById('workspace-sel');
+  const wrap = document.getElementById('workspace-select-wrap');
+  if (!select || !wrap) return;
+  const teams = State.workspaces || [];
+  select.innerHTML = '<option value="personal">Personal</option>' +
+    teams.map(workspace => `<option value="${workspace.id}">${esc(workspace.name || 'Team Workspace')}</option>`).join('');
+  select.value = State.activeWorkspaceScope || 'personal';
+  wrap.style.display = '';
 }
 
 async function hydrateSessionState() {
@@ -430,6 +461,7 @@ async function boot() {
 
     if (State.currentUser || !State.publicConfig.auth_required) {
       await loadWorkspaceData();
+      await loadTeamWorkspaces();
     } else {
       resetWorkspaceData();
     }
@@ -540,8 +572,18 @@ function wireUI() {
   document.getElementById('hist-btn').addEventListener('click',     openHistory);
   document.getElementById('ai-config-btn').addEventListener('click', openAIConfig);
   document.getElementById('theme-btn').addEventListener('click',    openThemeModal);
+  document.getElementById('team-btn')?.addEventListener('click',    openTeamModal);
   document.getElementById('runner-btn').addEventListener('click',   () => openRunnerStudio());
   document.getElementById('user-btn').addEventListener('click',     openSignIn);
+  document.getElementById('team-create-btn')?.addEventListener('click', () => createTeamWorkspace().catch(error => {
+    document.getElementById('team-err').textContent = error.message || String(error);
+  }));
+  document.getElementById('team-invite-btn')?.addEventListener('click', () => inviteTeamMember().catch(error => {
+    document.getElementById('team-err').textContent = error.message || String(error);
+  }));
+  document.getElementById('team-share-coll-btn')?.addEventListener('click', () => shareTeamCollection().catch(error => {
+    document.getElementById('team-err').textContent = error.message || String(error);
+  }));
   document.getElementById('tab-scroll-left').addEventListener('click', () => scrollTabsBy(-220));
   document.getElementById('tab-scroll-right').addEventListener('click', () => scrollTabsBy(220));
   document.getElementById('tab-bar-wrap').addEventListener('scroll', syncTabScrollButtons);
@@ -553,6 +595,12 @@ function wireUI() {
   }, { passive: false });
   document.getElementById('admin-scope-sel').addEventListener('change', e => {
     API.setViewOwnerId(e.target.value || '');
+  });
+  document.getElementById('workspace-sel')?.addEventListener('change', e => {
+    State.activeWorkspaceScope = e.target.value || 'personal';
+    renderSidebar(document.getElementById('sb-search-inp')?.value || '');
+    const workspace = (State.workspaces || []).find(item => item.id === State.activeWorkspaceScope);
+    showToast(workspace ? `Switched to ${workspace.name}` : 'Switched to personal workspace');
   });
 
   // Sidebar import
