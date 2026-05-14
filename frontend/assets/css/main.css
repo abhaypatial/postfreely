@@ -296,14 +296,14 @@ button,input,select,textarea{font:inherit}
 .tb-btn{background:transparent;border:1px solid transparent;border-radius:6px;padding:6px 12px;color:var(--text2);cursor:pointer;font-size:12px;font-weight:500;font-family:var(--font);display:flex;align-items:center;gap:6px;transition:all .2s;white-space:nowrap}
 .tb-btn:hover{color:var(--text);background:var(--bg3)}
 .tb-btn.danger:hover{color:var(--red);background:var(--redbg)}
-#admin-scope-wrap{display:flex;align-items:center;gap:8px;padding:3px 8px 3px 9px;border:1px solid var(--border2);border-radius:999px;background:rgba(255,255,255,0.03)}
+#admin-scope-wrap, #workspace-select-wrap{display:flex;align-items:center;gap:8px;padding:3px 8px 3px 9px;border:1px solid var(--border2);border-radius:999px;background:rgba(255,255,255,0.03)}
 .tb-meta-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.14em;font-weight:700;font-family:var(--font-ui)}
 .tb-meta-icon{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:999px;border:1px solid var(--accentborder);background:var(--accentbg);position:relative;flex-shrink:0}
 .tb-meta-icon::before,
 .tb-meta-icon::after{content:'';position:absolute;inset:auto}
 .tb-meta-icon::before{width:8px;height:8px;border:1px solid currentColor;border-radius:2px;color:var(--accent);box-shadow:5px 5px 0 -1px currentColor}
 .tb-meta-icon::after{display:none}
-#admin-scope-sel{min-width:180px;background:transparent;border:none;color:var(--text);font-family:var(--font);font-size:11px;outline:none}
+#admin-scope-sel, #workspace-sel{min-width:180px;background:transparent;border:none;color:var(--text);font-family:var(--font);font-size:11px;outline:none}
 #user-btn{background:var(--accentbg);border:1px solid var(--accentborder);color:var(--accent);border-radius:var(--radius);padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font)}
 #user-btn:hover{background:var(--accent);color:#000}
 
@@ -846,10 +846,6 @@ select option{background:var(--bg3);color:var(--text)}
 #admin-scope-wrap{
   flex:0 1 380px;
   min-width:220px;
-}
-#workspace-select-wrap{
-  flex:0 1 260px;
-  min-width:170px;
 }
 #workspace-sel{
   min-width:0;
