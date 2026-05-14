@@ -220,6 +220,48 @@ body { min-height: 100vh; }
   border-color: var(--accentborder);
   background: linear-gradient(180deg, rgba(0, 229, 160, 0.08), rgba(0, 0, 0, 0.08));
 }
+.runner-request-list {
+  margin-top: 16px;
+  display: none;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.02);
+}
+.runner-request-list.show { display: block; }
+.runner-request-row {
+  display: grid;
+  grid-template-columns: 36px 82px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 10px 12px;
+}
+.runner-request-row + .runner-request-row { border-top: 1px solid var(--border); }
+.runner-request-row.excluded {
+  opacity: 0.58;
+  background: rgba(255, 92, 124, 0.06);
+}
+.runner-exclude-check {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--blue);
+  cursor: pointer;
+  justify-self: center;
+}
+.runner-request-name {
+  min-width: 0;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.runner-request-name small {
+  display: block;
+  color: var(--text3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 #results-card { min-height: 420px; }
 .results-head {
   display: flex;
@@ -950,6 +992,7 @@ body { min-height: 100vh; }
           <span class="file-chip" id="r-iter-summary">1 manual iteration</span>
         </div>
       </div>
+      <div class="runner-request-list" id="r-request-list"></div>
     </section>
 
     <section class="r-card" id="results-card">
@@ -1079,6 +1122,7 @@ let RUNNER_STATE = {
   summaryFilter: 'all',
   iterationOpenState: {},
   resultOpenState: {},
+  excludedRequestIds: {},
   settings: {},
   stopRequested: false,
 };
@@ -1199,6 +1243,7 @@ function runRunnerScript(code, context = {}) {
   const logs = [];
   const tests = [];
   let nextRequest = undefined;
+  let visualizerHtml = '';
 
   const envProxy = {
     get: (key) => context.variables?.[key] ?? '',
@@ -1227,8 +1272,13 @@ function runRunnerScript(code, context = {}) {
   const responseProxy = context.response ? {
     ...context.response,
     json: () => {
-      try { return JSON.parse(context.response.body); }
-      catch { return null; }
+      const body = context.response.raw_body != null ? context.response.raw_body : context.response.body;
+      if (body == null || body === '') return {};
+      try {
+        const parsed = typeof body === 'string' ? JSON.parse(body) : body;
+        return parsed == null ? {} : parsed;
+      }
+      catch { return {}; }
     },
     get status() { return context.response.status_code; },
     get headers() { return context.response.headers || {}; },
@@ -1248,6 +1298,12 @@ function runRunnerScript(code, context = {}) {
     execution: execProxy,
     request: requestProxy,
     response: responseProxy,
+    visualizer: {
+      set: (template) => {
+        visualizerHtml = String(template == null ? '' : template);
+        logs.push({ type:'info', msg:'visualizer.set(...)' });
+      }
+    },
   };
 
   try {
@@ -1259,9 +1315,9 @@ function runRunnerScript(code, context = {}) {
     );
   } catch(e) {
     logs.push({ type:'err', msg:`Script error: ${e.message}` });
-    return { tests, logs, error: e.message, nextRequest };
+    return { tests, logs, error: e.message, nextRequest, visualizerHtml };
   }
-  return { tests, logs, error: null, nextRequest };
+  return { tests, logs, error: null, nextRequest, visualizerHtml };
 }
 
 async function executeIteration(run, collection, envId, requestDefs, iteration, dataRow, delayMs) {
@@ -1347,6 +1403,7 @@ async function executeIteration(run, collection, envId, requestDefs, iteration, 
       response.tests = post.tests || [];
       response.postscript_logs = post.logs || [];
       response.postscript_error = post.error || '';
+      response.visualizer_html = post.visualizerHtml || '';
       if (post.nextRequest !== undefined) nextRequestOverride = post.nextRequest;
     }
 
@@ -1653,8 +1710,19 @@ function bindRunnerEvents() {
   const dataInput = document.getElementById('r-data-file');
 
   collectionSelect.addEventListener('change', () => {
+    ensureExcludedRequestSet(collectionSelect.value);
     renderConfigState();
     persistRunnerPrefs();
+  });
+  document.getElementById('r-request-list').addEventListener('change', event => {
+    const checkbox = event.target.closest('[data-runner-exclude]');
+    if (!checkbox || RUNNER_STATE.isRunning) return;
+    const collectionId = document.getElementById('r-coll-sel').value;
+    const requestId = checkbox.dataset.runnerExclude;
+    const excluded = ensureExcludedRequestSet(collectionId);
+    if (checkbox.checked) excluded.add(requestId);
+    else excluded.delete(requestId);
+    renderConfigState();
   });
   envSelect.addEventListener('change', persistRunnerPrefs);
   document.getElementById('r-delay').addEventListener('input', persistRunnerPrefs);
@@ -1836,8 +1904,11 @@ function updateIterationMode() {
 
 function renderConfigState() {
   const collection = findCollection(document.getElementById('r-coll-sel').value);
+  const requests = collection?.requests || [];
+  const excluded = ensureExcludedRequestSet(collection?.id || '');
+  const includedCount = requests.filter(request => !excluded.has(request.id)).length;
   const selectedChip = document.getElementById('r-selected-chip');
-  selectedChip.textContent = collection ? `${collection.name} selected` : 'No collection selected';
+  selectedChip.textContent = collection ? `${collection.name} - ${includedCount}/${requests.length} call(s) selected` : 'No collection selected';
   selectedChip.classList.toggle('strong', !!collection);
 
   const hasData = RUNNER_STATE.dataRows.length > 0;
@@ -1850,12 +1921,46 @@ function renderConfigState() {
     ? `${RUNNER_STATE.dataRows.length} file-driven iteration(s)`
     : `${parseInt(document.getElementById('r-iters').value, 10) || 1} manual iteration(s)`;
   document.getElementById('r-config-note').textContent = hasData
-    ? `${RUNNER_STATE.dataFileName} is loaded. Every row becomes one iteration, so the runner will execute exactly ${RUNNER_STATE.dataRows.length} iteration(s) and ignore the manual iterations box until you clear or replace the file. Browser-compatible requests run directly from your machine for maximum speed.`
-    : 'No data file loaded yet. Manual iterations will repeat the collection in order. Add a CSV or JSON file if you want each row to become one iteration automatically. Browser-compatible requests run directly from your machine for maximum speed.';
+    ? `${RUNNER_STATE.dataFileName} is loaded. Every row becomes one iteration. Delete beside a call excludes it from this runner session without removing it from the collection.`
+    : 'No data file loaded yet. Manual iterations will repeat the selected calls in order. Delete beside a call excludes it from this runner session without removing it from the collection.';
   document.getElementById('r-results-subtitle').textContent = collection
     ? `Showing output for ${collection.name}. Keep rerunning with the same file, switch environments, or update the collection and run again.`
     : 'Pick a collection, attach data if needed, and run it. Results stay here while the data file lives in its own side panel.';
+  renderRunnerRequestList(collection, excluded);
   persistRunnerPrefs();
+}
+
+function ensureExcludedRequestSet(collectionId) {
+  if (!collectionId) return new Set();
+  if (!(RUNNER_STATE.excludedRequestIds[collectionId] instanceof Set)) {
+    RUNNER_STATE.excludedRequestIds[collectionId] = new Set(RUNNER_STATE.excludedRequestIds[collectionId] || []);
+  }
+  return RUNNER_STATE.excludedRequestIds[collectionId];
+}
+
+function renderRunnerRequestList(collection, excluded) {
+  const list = document.getElementById('r-request-list');
+  if (!list) return;
+  const requests = collection?.requests || [];
+  if (!collection || !requests.length) {
+    list.className = 'runner-request-list';
+    list.innerHTML = '';
+    return;
+  }
+  list.className = 'runner-request-list show';
+  list.innerHTML = requests.map(request => {
+    const isExcluded = excluded.has(request.id);
+    return `
+      <div class="runner-request-row ${isExcluded ? 'excluded' : ''}">
+        <input class="runner-exclude-check" data-runner-exclude="${esc(request.id)}" type="checkbox" ${isExcluded ? 'checked' : ''} title="Exclude from run"/>
+        <span class="meth ${methodBadge(request.method || 'GET')}">${esc(request.method || 'GET')}</span>
+        <span class="runner-request-name">
+          <b>${esc(request.name || 'Request')}</b>
+          <small>${esc(request.url || '')}</small>
+        </span>
+        <span class="file-chip">${isExcluded ? 'Excluded' : 'Included'}</span>
+      </div>`;
+  }).join('');
 }
 
 function renderDataPreview() {
@@ -2359,6 +2464,11 @@ function renderResultItem(result, index) {
             <h4>Script Logs</h4>
             <div class="detail-pre">${esc(scriptLogs)}</div>
           </div>` : ''}
+        ${response.visualizer_html ? `
+          <div class="detail-card" style="margin-top:12px">
+            <h4>Visualizer</h4>
+            <iframe class="visualizer-frame" sandbox="allow-same-origin" srcdoc="${esc(response.visualizer_html)}"></iframe>
+          </div>` : ''}
         <div class="detail-actions">
           <div class="file-chip">${formatSize(result.size_bytes || 0)} - ${result.elapsed_ms || 0}ms - ${esc(result.status_text || '')}</div>
           ${result.passed
@@ -2542,7 +2652,10 @@ async function runCollection() {
 
   const collection = findCollection(collectionId);
   const transportMode = document.getElementById('r-transport')?.value || 'browser';
-  const requestDefs = (collection?.requests || []).map(req => {
+  const excluded = ensureExcludedRequestSet(collectionId);
+  const requestDefs = (collection?.requests || [])
+    .filter(req => !excluded.has(req.id))
+    .map(req => {
     const norm = normalizeRunnerRequest(req);
     if (transportMode !== 'auto') {
       norm.transport_mode = transportMode;
@@ -2553,7 +2666,6 @@ async function runCollection() {
     showToast('This collection has no runnable requests yet.', true);
     return;
   }
-  collection.requests = requestDefs;
 
   RUNNER_STATE.isRunning = true;
   RUNNER_STATE.isStopping = false;

@@ -11,6 +11,7 @@ function runScript(code, context = {}) {
   const envChanges = {};
   const collChanges = {};
   let   requestMutations = {};
+  let   visualizerHtml = '';
 
   const envProxy = {
     get: (key) => {
@@ -50,8 +51,13 @@ function runScript(code, context = {}) {
   const responseProxy = context.response ? {
     ...context.response,
     json: () => {
-      try { return JSON.parse(context.response.body); }
-      catch { return null; }
+      const body = context.response.raw_body != null ? context.response.raw_body : context.response.body;
+      if (body == null || body === '') return {};
+      try {
+        const parsed = typeof body === 'string' ? JSON.parse(body) : body;
+        return parsed == null ? {} : parsed;
+      }
+      catch { return {}; }
     },
     get status()  { return context.response.status_code; },
     get headers() { return context.response.headers || {}; },
@@ -90,6 +96,12 @@ function runScript(code, context = {}) {
     execution: execProxy,
     request: requestProxy,
     response: responseProxy,
+    visualizer: {
+      set: (template) => {
+        visualizerHtml = String(template == null ? '' : template);
+        logs.push({ type:'info', msg:'visualizer.set(...)' });
+      }
+    },
   };
 
   try {
@@ -101,9 +113,9 @@ function runScript(code, context = {}) {
     );
   } catch(e) {
     logs.push({ type:'err', msg:`Script error: ${e.message}` });
-    return { envChanges, collChanges, requestMutations, tests, logs, error: e.message };
+    return { envChanges, collChanges, requestMutations, tests, logs, error: e.message, visualizerHtml };
   }
-  return { envChanges, collChanges, requestMutations, tests, logs, error: null };
+  return { envChanges, collChanges, requestMutations, tests, logs, error: null, visualizerHtml };
 }
 
 function showScriptLog(logElId, result) {
@@ -767,6 +779,7 @@ async function doSend() {
       result.tests = post.tests || [];
       result.postscript_logs = post.logs || [];
       result.postscript_error = post.error || '';
+      result.visualizer_html = post.visualizerHtml || '';
       tab.response = result;
       State.lastResponse = result;
       showPostScriptBadge(post.tests);

@@ -583,6 +583,10 @@ function renderSidebar(filter = '') {
           <div class="req-item" data-rid="${r.id}" data-cid="${col.id}">
             <span class="meth ${methodColor(r.method)}">${r.method}</span>
             <span class="req-name-text" title="${esc(r.url)}">${esc(r.name || r.url)}</span>
+            <span class="req-quick-actions">
+              <button class="req-action-btn" data-export-req="${r.id}" title="Export request" type="button">Export</button>
+              <button class="req-action-btn danger" data-delete-req="${r.id}" title="Delete request" type="button">Delete</button>
+            </span>
           </div>`).join('')}
         <div style="padding:4px 10px 4px 22px">
           <button class="add-kv" data-addreq="${col.id}">+ Add Request</button>
@@ -611,7 +615,8 @@ function renderSidebar(filter = '') {
 
     // Request click
     group.querySelectorAll('.req-item').forEach(item => {
-      item.addEventListener('click', () => {
+      item.addEventListener('click', e => {
+        if (e.target.closest('.req-action-btn')) return;
         const r = (col.requests || []).find(x => x.id === item.dataset.rid);
         if (!r) return;
         addNewTab({
@@ -633,6 +638,30 @@ function renderSidebar(filter = '') {
       });
     });
 
+    group.querySelectorAll('[data-export-req]').forEach(button => {
+      button.addEventListener('click', e => {
+        e.stopPropagation();
+        const request = (col.requests || []).find(x => x.id === button.dataset.exportReq);
+        if (request) exportSavedRequest(col, request);
+      });
+    });
+
+    group.querySelectorAll('[data-delete-req]').forEach(button => {
+      button.addEventListener('click', async e => {
+        e.stopPropagation();
+        const request = (col.requests || []).find(x => x.id === button.dataset.deleteReq);
+        if (!request || !confirm(`Delete request "${request.name || request.url}"?`)) return;
+        await API.deleteRequest(col.id, request.id);
+        col.requests = (col.requests || []).filter(x => x.id !== request.id);
+        const activeTab = State.getTab(State.activeTab);
+        if (activeTab?.savedReqId === request.id && activeTab.collectionId === col.id) {
+          activeTab.savedReqId = null;
+        }
+        renderSidebar(filter);
+        showToast('Request deleted');
+      });
+    });
+
     // Add request button
     group.querySelector('[data-addreq]')?.addEventListener('click', e => {
       e.stopPropagation();
@@ -641,6 +670,34 @@ function renderSidebar(filter = '') {
 
     list.appendChild(group);
   });
+}
+
+function exportSavedRequest(collection, request) {
+  const payload = {
+    format: 'postfreely-request',
+    version: 1,
+    exported_at: new Date().toISOString(),
+    collection: {
+      id: collection.id,
+      name: collection.name,
+      variables: collection.variables || {},
+    },
+    request,
+  };
+  const baseName = String(request.name || request.url || 'request')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'request';
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `${baseName}.postfreely-request.json`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 500);
+  showToast(`Exported ${request.name || 'request'}`);
 }
 
 const VAR_TOKEN_RE = /\{\{\s*([^{}]+?)\s*\}\}|(\/\/.*)|(\/\*[\s\S]*?\*\/)/g;
@@ -942,6 +999,8 @@ function showRespEmpty() {
   document.getElementById('resp-empty').style.display = '';
   document.getElementById('resp-out').style.display   = 'none';
   document.getElementById('resp-preview').style.display = 'none';
+  const visualizer = document.getElementById('resp-visualizer');
+  if (visualizer) visualizer.style.display = 'none';
   document.getElementById('resp-hdrs').style.display  = 'none';
   document.getElementById('resp-request').style.display = 'none';
   document.getElementById('resp-tests').style.display = 'none';
@@ -955,7 +1014,8 @@ function renderResponse(resp, preferredTab = '') {
   document.getElementById('resp-empty').style.display  = 'none';
   document.getElementById('resp-topbar').style.display = '';
   document.getElementById('resp-ai').classList.remove('visible');
-  const desiredTab = preferredTab || State.activeResponseTab || 'body';
+  let desiredTab = preferredTab || State.activeResponseTab || 'body';
+  if (desiredTab === 'visualizer' && !resp.visualizer_html) desiredTab = 'body';
   const activeTab = State.getTab(State.activeTab);
   const activeUrl = activeTab?.url || '';
   const requestSummary = activeTab ? `
@@ -971,6 +1031,8 @@ function renderResponse(resp, preferredTab = '') {
     // Connection-level error: show detailed error panel
     document.getElementById('resp-out').style.display   = 'none';
     preview.style.display = 'none';
+    const visualizer = document.getElementById('resp-visualizer');
+    if (visualizer) visualizer.style.display = 'none';
     document.getElementById('resp-hdrs').style.display  = 'none';
     document.getElementById('resp-request').style.display = 'none';
     document.getElementById('resp-tests').style.display = 'none';
@@ -1017,6 +1079,7 @@ function renderResponse(resp, preferredTab = '') {
     <div id="resp-tab-list">
       <span class="rtab" data-rt="body">Body</span>
       <span class="rtab" data-rt="preview">Preview</span>
+      ${resp.visualizer_html ? '<span class="rtab" data-rt="visualizer">Visualize</span>' : ''}
       <span class="rtab" data-rt="headers">Headers</span>
       <span class="rtab" data-rt="request">Request</span>
       <span class="rtab" data-rt="tests">Tests</span>
@@ -1040,6 +1103,7 @@ function renderResponse(resp, preferredTab = '') {
   out.style.display = 'block';
   out.innerHTML = resp.is_json ? syntaxHighlight(resp.body) : esc(resp.body);
   renderResponsePreview(resp);
+  renderResponseVisualizer(resp);
 
   // Headers
   const hdrs = document.getElementById('resp-hdrs');
@@ -1076,6 +1140,8 @@ function switchRespTab(rt) {
   document.querySelectorAll('.rtab').forEach(t => t.classList.toggle('active', t.dataset.rt === rt));
   document.getElementById('resp-out').style.display   = rt==='body'    ? 'block' : 'none';
   document.getElementById('resp-preview').style.display = rt==='preview' ? 'block' : 'none';
+  const visualizer = document.getElementById('resp-visualizer');
+  if (visualizer) visualizer.style.display = rt==='visualizer' ? 'block' : 'none';
   document.getElementById('resp-hdrs').style.display  = rt==='headers' ? 'block' : 'none';
   document.getElementById('resp-request').style.display  = rt==='request' ? 'block' : 'none';
   document.getElementById('resp-tests').style.display = rt==='tests' ? 'block' : 'none';
@@ -1087,6 +1153,15 @@ function switchRespTab(rt) {
     aiEl.style.display = 'none';
     aiEl.classList.remove('visible');
   }
+}
+
+function renderResponseVisualizer(resp) {
+  const visualizer = document.getElementById('resp-visualizer');
+  if (!visualizer) return;
+  visualizer.style.display = 'none';
+  visualizer.innerHTML = resp?.visualizer_html
+    ? `<iframe class="visualizer-frame" sandbox="allow-same-origin" srcdoc="${esc(resp.visualizer_html)}"></iframe>`
+    : '';
 }
 
 function renderResponseTests(resp) {
