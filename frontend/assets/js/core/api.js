@@ -574,6 +574,80 @@ async function testBrowserCompatibility(payload, options = {}) {
   };
 }
 
+const POSTFREELY_LOCAL_SECRETS_KEY = 'postfreely.local-secrets.v1';
+
+function getLocalSecrets() {
+  try {
+    return JSON.parse(localStorage.getItem(POSTFREELY_LOCAL_SECRETS_KEY) || '{}');
+  } catch (_) {
+    return {};
+  }
+}
+
+function _extractAndMaskSecrets(scopeId, payload) {
+  if (!payload || !payload.variables) return payload;
+  const variables = { ...payload.variables };
+  const secrets = getLocalSecrets();
+  let changed = false;
+  
+  for (const key of Object.keys(variables)) {
+    const lower = key.toLowerCase();
+    if (lower.includes('password') || lower.includes('email')) {
+      if (!secrets[scopeId]) secrets[scopeId] = {};
+      secrets[scopeId][key] = variables[key];
+      variables[key] = ''; // Send empty value to backend
+      changed = true;
+    }
+  }
+  
+  if (changed) {
+    localStorage.setItem(POSTFREELY_LOCAL_SECRETS_KEY, JSON.stringify(secrets));
+  }
+  
+  return { ...payload, variables };
+}
+
+function _injectLocalSecrets(scopeId, item) {
+  if (!item || !item.variables) return item;
+  const secrets = getLocalSecrets()[scopeId];
+  if (secrets) {
+    const variables = { ...item.variables };
+    for (const key of Object.keys(variables)) {
+      const lower = key.toLowerCase();
+      if ((lower.includes('password') || lower.includes('email')) && secrets[key] !== undefined) {
+        variables[key] = secrets[key];
+      }
+    }
+    item.variables = variables;
+  }
+  return item;
+}
+
+function _injectLocalSecretsMap(map) {
+  if (!map || typeof map !== 'object') return map;
+  const result = { ...map };
+  for (const id of Object.keys(result)) {
+    if (result[id] && typeof result[id] === 'object') {
+      result[id] = _injectLocalSecrets(id, result[id]);
+    }
+  }
+  return result;
+}
+
+function _injectLocalSecretsEnvPayload(payload) {
+  if (!payload || !payload.envs) return payload;
+  payload.envs = _injectLocalSecretsMap(payload.envs);
+  return payload;
+}
+
+function _removeLocalSecret(scopeId) {
+  const secrets = getLocalSecrets();
+  if (secrets[scopeId]) {
+    delete secrets[scopeId];
+    localStorage.setItem(POSTFREELY_LOCAL_SECRETS_KEY, JSON.stringify(secrets));
+  }
+}
+
 const API = {
   getSession,
   setSession,
@@ -590,21 +664,53 @@ const API = {
   getPublicConfig:       ()      => isSupabaseCloudMode() ? Promise.resolve(window.PostFreelyCloudAPI.publicConfig()) : request('GET', '/api/public/config', undefined, { skipAuth: true, scoped: false }),
 
   // Collections
-  getCollections:        ()      => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.getCollections() : request('GET', '/api/collections'),
-  createCollection:      (d)     => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.createCollection(d || {}) : request('POST', '/api/collections', d),
-  updateCollection:      (id,d)  => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.updateCollection(id, d || {}) : request('PUT', `/api/collections/${id}`, d),
-  deleteCollection:      (id)    => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.deleteCollection(id) : request('DELETE', `/api/collections/${id}`),
+  getCollections:        async () => {
+    const res = await (isSupabaseCloudMode() ? window.PostFreelyCloudAPI.getCollections() : request('GET', '/api/collections'));
+    return _injectLocalSecretsMap(res);
+  },
+  createCollection:      async (d) => {
+    const res = await (isSupabaseCloudMode() ? window.PostFreelyCloudAPI.createCollection(d || {}) : request('POST', '/api/collections', d));
+    return res ? _injectLocalSecrets(res.id, res) : res;
+  },
+  updateCollection:      async (id,d) => {
+    const payload = _extractAndMaskSecrets(id, d);
+    const res = await (isSupabaseCloudMode() ? window.PostFreelyCloudAPI.updateCollection(id, payload || {}) : request('PUT', `/api/collections/${id}`, payload));
+    return res ? _injectLocalSecrets(id, res) : res;
+  },
+  deleteCollection:      async (id) => {
+    const res = await (isSupabaseCloudMode() ? window.PostFreelyCloudAPI.deleteCollection(id) : request('DELETE', `/api/collections/${id}`));
+    _removeLocalSecret(id);
+    return res;
+  },
   addRequest:            (cid,d) => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.addRequest(cid, d || {}) : request('POST', `/api/collections/${cid}/requests`, d),
   updateRequest:         (cid,rid,d) => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.updateRequest(cid, rid, d || {}) : request('PUT', `/api/collections/${cid}/requests/${rid}`, d),
   deleteRequest:         (cid,rid)   => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.deleteRequest(cid, rid) : request('DELETE', `/api/collections/${cid}/requests/${rid}`),
   importCollection:      (d)     => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.importCollection(d || {}) : request('POST', '/api/collections/import', d),
-  updateCollVars:        (id,d)  => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.updateCollVars(id, d || {}) : request('PUT', `/api/collections/${id}/variables`, d),
+  updateCollVars:        async (id,d) => {
+    const payload = _extractAndMaskSecrets(id, d);
+    const res = await (isSupabaseCloudMode() ? window.PostFreelyCloudAPI.updateCollVars(id, payload || {}) : request('PUT', `/api/collections/${id}/variables`, payload));
+    return res ? _injectLocalSecrets(id, res) : res;
+  },
 
   // Environments
-  getEnvironments:       ()      => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.getEnvironments() : request('GET', '/api/environments'),
-  createEnvironment:     (d)     => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.createEnvironment(d || {}) : request('POST', '/api/environments', d),
-  updateEnvironment:     (id,d)  => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.updateEnvironment(id, d || {}) : request('PUT', `/api/environments/${id}`, d),
-  deleteEnvironment:     (id)    => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.deleteEnvironment(id) : request('DELETE', `/api/environments/${id}`),
+  getEnvironments:       async () => {
+    const res = await (isSupabaseCloudMode() ? window.PostFreelyCloudAPI.getEnvironments() : request('GET', '/api/environments'));
+    return _injectLocalSecretsEnvPayload(res);
+  },
+  createEnvironment:     async (d) => {
+    const res = await (isSupabaseCloudMode() ? window.PostFreelyCloudAPI.createEnvironment(d || {}) : request('POST', '/api/environments', d));
+    return res ? _injectLocalSecrets(res.id, res) : res;
+  },
+  updateEnvironment:     async (id,d) => {
+    const payload = _extractAndMaskSecrets(id, d);
+    const res = await (isSupabaseCloudMode() ? window.PostFreelyCloudAPI.updateEnvironment(id, payload || {}) : request('PUT', `/api/environments/${id}`, payload));
+    return res ? _injectLocalSecrets(id, res) : res;
+  },
+  deleteEnvironment:     async (id) => {
+    const res = await (isSupabaseCloudMode() ? window.PostFreelyCloudAPI.deleteEnvironment(id) : request('DELETE', `/api/environments/${id}`));
+    _removeLocalSecret(id);
+    return res;
+  },
   activateEnvironment:   (id)    => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.activateEnvironment(id) : request('POST', `/api/environments/${id}/activate`, {}),
 
   // Proxy / execution
