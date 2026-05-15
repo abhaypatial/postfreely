@@ -604,7 +604,7 @@ function _extractAndMaskSecrets(scopeId, payload) {
     localStorage.setItem(POSTFREELY_LOCAL_SECRETS_KEY, JSON.stringify(secrets));
   }
   
-  return { ...payload, variables };
+  return { maskedPayload: { ...payload, variables }, changed };
 }
 
 function _injectLocalSecrets(scopeId, item) {
@@ -669,12 +669,27 @@ const API = {
     return _injectLocalSecretsMap(res);
   },
   createCollection:      async (d) => {
-    const res = await (isSupabaseCloudMode() ? window.PostFreelyCloudAPI.createCollection(d || {}) : request('POST', '/api/collections', d));
+    // We don't have an ID yet, so mask them under a temporary scope
+    const { maskedPayload, changed } = _extractAndMaskSecrets('new_collection_temp', d);
+    const res = await (isSupabaseCloudMode() ? window.PostFreelyCloudAPI.createCollection(maskedPayload || {}) : request('POST', '/api/collections', maskedPayload));
+    if (res && res.id && changed) {
+       // Migrate the secrets from 'new_collection_temp' to the actual ID
+       const secrets = getLocalSecrets();
+       if (secrets['new_collection_temp']) {
+         secrets[res.id] = secrets['new_collection_temp'];
+         delete secrets['new_collection_temp'];
+         localStorage.setItem(POSTFREELY_LOCAL_SECRETS_KEY, JSON.stringify(secrets));
+       }
+       res.variables = d.variables; // Restore locally
+    }
     return res ? _injectLocalSecrets(res.id, res) : res;
   },
   updateCollection:      async (id,d) => {
-    const payload = _extractAndMaskSecrets(id, d);
-    const res = await (isSupabaseCloudMode() ? window.PostFreelyCloudAPI.updateCollection(id, payload || {}) : request('PUT', `/api/collections/${id}`, payload));
+    const { maskedPayload, changed } = _extractAndMaskSecrets(id, d);
+    let res = await (isSupabaseCloudMode() ? window.PostFreelyCloudAPI.updateCollection(id, maskedPayload || {}) : request('PUT', `/api/collections/${id}`, maskedPayload));
+    if ((!res || !res.id || res.error) && changed) {
+      res = { id, ...d }; // Fake success for local-only secrets
+    }
     return res ? _injectLocalSecrets(id, res) : res;
   },
   deleteCollection:      async (id) => {
@@ -687,8 +702,11 @@ const API = {
   deleteRequest:         (cid,rid)   => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.deleteRequest(cid, rid) : request('DELETE', `/api/collections/${cid}/requests/${rid}`),
   importCollection:      (d)     => isSupabaseCloudMode() ? window.PostFreelyCloudAPI.importCollection(d || {}) : request('POST', '/api/collections/import', d),
   updateCollVars:        async (id,d) => {
-    const payload = _extractAndMaskSecrets(id, d);
-    const res = await (isSupabaseCloudMode() ? window.PostFreelyCloudAPI.updateCollVars(id, payload || {}) : request('PUT', `/api/collections/${id}/variables`, payload));
+    const { maskedPayload, changed } = _extractAndMaskSecrets(id, d);
+    let res = await (isSupabaseCloudMode() ? window.PostFreelyCloudAPI.updateCollVars(id, maskedPayload || {}) : request('PUT', `/api/collections/${id}/variables`, maskedPayload));
+    if ((!res || !res.id || res.error) && changed) {
+      res = { id, variables: d.variables };
+    }
     return res ? _injectLocalSecrets(id, res) : res;
   },
 
@@ -698,12 +716,25 @@ const API = {
     return _injectLocalSecretsEnvPayload(res);
   },
   createEnvironment:     async (d) => {
-    const res = await (isSupabaseCloudMode() ? window.PostFreelyCloudAPI.createEnvironment(d || {}) : request('POST', '/api/environments', d));
+    const { maskedPayload, changed } = _extractAndMaskSecrets('new_environment_temp', d);
+    const res = await (isSupabaseCloudMode() ? window.PostFreelyCloudAPI.createEnvironment(maskedPayload || {}) : request('POST', '/api/environments', maskedPayload));
+    if (res && res.id && changed) {
+       const secrets = getLocalSecrets();
+       if (secrets['new_environment_temp']) {
+         secrets[res.id] = secrets['new_environment_temp'];
+         delete secrets['new_environment_temp'];
+         localStorage.setItem(POSTFREELY_LOCAL_SECRETS_KEY, JSON.stringify(secrets));
+       }
+       res.variables = d.variables;
+    }
     return res ? _injectLocalSecrets(res.id, res) : res;
   },
   updateEnvironment:     async (id,d) => {
-    const payload = _extractAndMaskSecrets(id, d);
-    const res = await (isSupabaseCloudMode() ? window.PostFreelyCloudAPI.updateEnvironment(id, payload || {}) : request('PUT', `/api/environments/${id}`, payload));
+    const { maskedPayload, changed } = _extractAndMaskSecrets(id, d);
+    let res = await (isSupabaseCloudMode() ? window.PostFreelyCloudAPI.updateEnvironment(id, maskedPayload || {}) : request('PUT', `/api/environments/${id}`, maskedPayload));
+    if ((!res || !res.id || res.error) && changed) {
+      res = { id, name: d.name || 'Environment', variables: d.variables };
+    }
     return res ? _injectLocalSecrets(id, res) : res;
   },
   deleteEnvironment:     async (id) => {

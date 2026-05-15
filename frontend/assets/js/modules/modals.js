@@ -112,11 +112,13 @@ function showEnvEditor(env) {
       if (k) variables[k] = v;
     });
     const updated = await API.updateEnvironment(env.id, { name, variables });
-    if (updated.id) {
+    if (updated && updated.id) {
       State.environments.envs[env.id] = updated;
       renderEnvStrip();
       showToast('Environment saved');
       closeAll();
+    } else {
+      showToast('Failed to save environment. ' + (updated?.error || 'Check permissions.'), true);
     }
   });
 
@@ -336,7 +338,12 @@ async function saveVariableEditor() {
     const col = State.collections[collectionId];
     const variables = { ...(col.variables || {}), [key]: value };
     const result = await API.updateCollVars(collectionId, { variables });
-    if (result.id) State.collections[collectionId] = result;
+    if (result && result.id) {
+      State.collections[collectionId] = result;
+    } else {
+      showToast('Failed to save collection variable. ' + (result?.error || 'Check permissions.'), true);
+      return;
+    }
   } else {
     if (!envId || !(State.environments.envs || {})[envId]) {
       showToast('No active environment selected.', true);
@@ -345,7 +352,12 @@ async function saveVariableEditor() {
     const env = State.environments.envs[envId];
     const variables = { ...(env.variables || {}), [key]: value };
     const result = await API.updateEnvironment(envId, { name: env.name, variables });
-    if (result.id) State.environments.envs[envId] = result;
+    if (result && result.id) {
+      State.environments.envs[envId] = result;
+    } else {
+      showToast('Failed to save environment variable. ' + (result?.error || 'Check permissions.'), true);
+      return;
+    }
   }
 
   renderEnvStrip();
